@@ -92,7 +92,7 @@ can increase the time limit for process in the server or php configuration.
 Examples
 --------
 
-Seven examples of csv files are available in the csv_files folder. They use free
+Eight examples of csv files are available in the csv_files folder. They use free
 images of [Wikipedia], so import speed depends on the connection:
 
 * `test.csv`: a basic list of three books with images of Wikipedia, with
@@ -150,6 +150,9 @@ so it can uses the default hooks, specially "after_save_item". To try this test
 file, you should install [Geolocation] and to import mixed records with
 `tabulation` as column delimiter, no enclosure, and `|` as element, file and tag
 delimiters.
+* `test_extra_data_update.csv`: show update of extra data. To test it, you need
+to import the previous file first, then this one, with the same option (just
+change the format to "Update").
 Notes: To import extra data to items, the formats "Mixed records" and "Update"
 should be used. Columns should be named like the post field in the hooks
 "before_save_*" or "after_save_*". If the plugin does not use these hooks, they
@@ -159,9 +162,11 @@ data for the [Geolocation] plugin implies to set not only "latitude" and
 "longitude", but "zoom_level", "map_type" and "address" too. Their values can be
 set to empty or not. The header of the columns should be the name used in the
 manual standard form. If this is a multivalued data, the column name should be
-appended with a ':'. Finally, as Omeka jobs don't manage ACL, if a plugin uses
-it (usually no), the jobs displatcher should be the synchronous one and be set
-in config.ini, so the ACL will use the one of the current user:
+appended with a ':'. For update, as the way plugins manage updates of their data
+varies, the `updateMode` is not used for extraData. Finally, as Omeka jobs don't
+manage ACL, if a plugin uses it (usually no), the jobs displatcher should be the
+synchronous one and be set in config.ini, so the ACL will use the one of the
+current user:
 ```
 jobs.dispatcher.longRunning = "Omeka_Job_Dispatcher_Adapter_Synchronous"
 ```

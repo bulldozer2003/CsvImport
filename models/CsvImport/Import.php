@@ -1050,6 +1050,9 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
         $record->addElementTextsByArray($elementTexts);
 
+        $extraData = $map[CsvImport_ColumnMap::TYPE_EXTRA_DATA];
+        $this->_setExtraData($record, $extraData, $mode);
+
         $record->save();
         return $record;
     }
@@ -1214,5 +1217,107 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         $builder->setPostData($postData);
         $builder->setFileMetadata($fileMetadata);
         return $builder->build();
+    }
+
+    /**
+     * Helper to set extra data for update of records.
+     *
+     * @internal $mode is currently not used, because the way plugins manage
+     * updates of their data varies.
+     *
+     * @todo Manage update mode via delete/add data?
+     *
+     * @see CSVImport_Builder_Item::_addPostData()
+     *
+     * @param Record $record
+     * @param array $extraData
+     * @param string $mode Update mode: "Add", "Replace" or "Replace all".
+     * @return void
+     */
+    private function _setExtraData($record, $extraData, $mode = 'Add')
+    {
+        if (empty($extraData)) {
+            return;
+        }
+
+        if (Zend_Registry::get('bootstrap')->config->jobs->dispatcher->longRunning
+                == 'Omeka_Job_Dispatcher_Adapter_Synchronous') {
+            $record->setPostData($extraData);
+        }
+        // Workaround for asynchronous jobs.
+        else {
+            $this->_setPostDataViaSetArray($record, $extraData);
+        }
+    }
+
+    /**
+     * Workaround to add post data to a record via setArray().
+     *
+     * @see CSVImport_Builder_Item::_setPostDataViaSetArray()
+     *
+     * @param Record $record
+     * @param array $post
+     */
+    private function _setPostDataViaSetArray($record, $postData)
+    {
+        $post = $postData;
+
+        // Some default type have a special filter.
+        switch (get_class($record)) {
+            case 'Collection':
+                $options = array('inputNamespace' => 'Omeka_Filter');
+                // User form input does not allow HTML tags or superfluous whitespace
+                $filters = array(
+                    'public' => 'Boolean',
+                    'featured' => 'Boolean',
+                );
+                $filter = new Zend_Filter_Input($filters, null, $post, $options);
+                $post = $filter->getUnescaped();
+                break;
+
+            case 'Item':
+                $options = array('inputNamespace' => 'Omeka_Filter');
+                $filters = array(
+                    // Foreign keys
+                    'item_type_id'  => 'ForeignKey',
+                    'collection_id' => 'ForeignKey',
+                    // Booleans
+                    'public' => 'Boolean',
+                    'featured' => 'Boolean',
+                );
+                $filter = new Zend_Filter_Input($filters, null, $post, $options);
+                $post = $filter->getUnescaped();
+                break;
+
+            case 'File':
+                $immutable = array('id', 'modified', 'added', 'authentication', 'filename',
+                    'original_filename', 'mime_type', 'type_os', 'item_id');
+                foreach ($immutable as $value) {
+                    unset($post[$value]);
+                }
+                break;
+
+            case 'ItemType':
+                $options = array('inputNamespace' => 'Omeka_Filter');
+                // User form input does not allow superfluous whitespace
+                $filters = array('name' => array('StripTags', 'StringTrim'),
+                    'description' => array('StringTrim'));
+                $filter = new Zend_Filter_Input($filters, null, $post, $options);
+                $post = $filter->getUnescaped();
+                break;
+        }
+
+        // Avoid an issue when the post is null.
+        if (empty($post)) {
+            return;
+        }
+
+        // Default used in Omeka_Record_Builder_AbstractBuilder::setPostData().
+        $post = new ArrayObject($post);
+        if (array_key_exists('id', $post)) {
+            unset($post['id']);
+        }
+
+        $record->setArray(array('_postData' => $post));
     }
 }
