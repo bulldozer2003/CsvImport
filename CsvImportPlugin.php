@@ -268,7 +268,7 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
     {
         $request = Zend_Controller_Front::getInstance()->getRequest();
         if ($request->getModuleName() == 'csv-import') {
-            queue_css_file('csv-import-main');
+            queue_css_file('csv-import');
             queue_js_file('csv-import');
         }
     }
