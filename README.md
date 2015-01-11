@@ -2,15 +2,19 @@ CSV Import (plugin for Omeka)
 =============================
 
 
-Summary
--------
-
-This plugin for [Omeka] allows users to import or update items from a simple
-CSV (comma separated values) file, and then map the CSV column data to multiple
-elements, files, and/or tags. Each row in the file represents metadata for a
-single item.
+[CSV Import] is a plugin for [Omeka] that allows users to import or update items
+from a simple CSV (comma separated values) file, and then map the CSV column
+data to multiple elements, files, and/or tags. Each row in the file represents
+metadata for a single item.
 This plugin is useful for exporting data from one database and importing that
 data into an Omeka site.
+
+This fork adds some improvments:
+- more options for import;
+- import of metadata of files and collections;
+- update of collections, items, files and any other standard records;
+- import extra data of records that are not managed via elements but via
+specific tables.
 
 The similar tool [Xml Import] can be useful too, depending on your types of
 data.
@@ -95,90 +99,138 @@ Examples
 Ten examples of csv files are available in the csv_files folder. They use free
 images of [Wikipedia], so import speed depends on the connection:
 
-* `test.csv`: a basic list of three books with images of Wikipedia, with
-non Dublin Core tags.
-* `test_automap_columns_to_elements.csv`: the same list with some Dublin Core
-attributes in order to automap the columns with the Omeka fields.
+* `test.csv`
 
-To try them, you just need to check `Item metadata`, to use the default
-delimiters `,` and, for the second file, to check option `Automap column`. Note
-that even you don't use the Automap option, the plugin will try to get matching
-columns if field names are the same in your file and in the drop-down list.
+    A basic list of three books with images of Wikipedia, with non Dublin Core
+    tags.
 
-* `test_special_delimiters.csv`: a file to try any delimiters. Special
-delimiters of this file are:
+* `test_automap_columns_to_elements.csv`
+
+    The same list with some Dublin Core attributes in order to automap the
+    columns with the Omeka fields.
+
+    To try them, you just need to check `Item metadata`, to use the default
+    delimiters `,` and, for the second file, to check option `Automap column`.
+    Note that even you don't use the Automap option, the plugin will try to get
+    matching columns if field names are the same in your file and in the
+    drop-down list.
+
+* `test_special_delimiters.csv`
+
+    A file to try any delimiters. Special delimiters of this file are:
     - Column delimiter: tabulation
     - Enclosure: quotation mark "
     - Element delimiter: custom ^^ (used by Csv Report)
     - Tag delimiter: double space
     - File delimiter: semi-colon
-* `test_files_metadata.csv`: a file used to import metadata of files. To try it,
-you should import items before with any of previous csv files, and check
-`File metadata` in the first form and `Filename` in the first row of the second
-form.
-* `test_mixed_records.csv`: a file used to show how to import metadata of item
-and files simultaneously, and to import files one by one to avoid server
-overloading. To try it, you should check `Mixed records` in the form and choose
-`tabulation` as column delimiter, `"` as enclosure, `#` as element delimiter
-and `;` as tag delimiter. Note that in the csv file, file rows should always be
- after the item to which they are attached.
-* `test_update_records.csv`: a file used to show how to update metadata of item
-and files. To try it, you should import "test_mixed_recods.csv" above first,
-then choose this file and check `Update records` in the form.
-In this csv file, four columns may be added comparing to a normal file:
-    - `updateMode`: The mode of update can be:
-        - "Add" (add values to fields),
-        - "Replace" (remove values of the field before inserting new ones),
-        - "Replace all" (remove values of all imported fields before inserting
-        new ones).
-    This column is optional: by default, values are added.
-    - `updateIdentifier`: This column is optional: by default, the identifier
-    is the "internal id" of the record. If another one is used, for example
-    "Dublin Core:Identifier", "Dublin Core:Title" or "original_filename", it
-    should be unique, else only the first existing record will be updated.
-    - `recordType`: The default record type is "Item", but each "File" can be
-    updated too. "Any" can be used only when identifier is not the internal id.
-    - `recordIdentifier`: This column is mandatory. According to
-    `updateIdentifier` column, it can be an internal id or anything else. If the
-    record doesn't exist, the row is skipped.
+
+* `test_files_metadata.csv`
+
+    A file used to import metadata of files. To try it, you should import items
+    before with any of previous csv files, and check `File metadata` in the
+    first form and `Filename` in the first row of the second form.
+
+* `test_mixed_records.csv`
+
+    A file used to show how to import metadata of item and files simultaneously,
+    and to import files one by one to avoid server overloading. To try it, you
+    should check `Mixed records` in the form and choose `tabulation` as column
+    delimiter, `"` as enclosure, `#` as element delimiter and `;` as tag
+    delimiter. Note that in the csv file, file rows should always be  after the
+    item to which they are attached.
+
+* `test_update_records.csv`
+
+    A file used to show how to update metadata of item and files. To try it, you
+    should import "test_mixed_recods.csv" above first, then choose this file and
+    check `Update records` in the form.
+
+* `test_collection_create.csv`
+
+    Add an item into a new collection. A created collection is not removed if an
+    error occurs during import. Parameters are "Mixed records", `tabulation` as
+    column delimiter and no enclosure.
+
+* `test_collection_update.csv`
+
+    Update metadata of a collection. Parameters are the same as in the previous
+    file, except format.
+
+* `test_extra_data.csv`
+
+    Show import of extra data that are not managed as elements, but as data in
+    a specific table. The mechanism processes data as post, so it can uses the
+    default hooks, specially `after_save_item`. To try this test file, you
+    should install [Geolocation] and to import mixed records with `tabulation`
+    as column delimiter, no enclosure, and `|` as element, file and tag
+    delimiters.
+
+* `test_extra_data_update.csv`
+
+    Show update of extra data. To test it, you need to import the previous file
+    first, then this one, with the same option (just change the format to
+    "Update").
+
+Columns can be ordered in any order.
+
+
+Notes
+------
+
+* Import and update of extra data
+
+    - The formats "Mixed records" and "Update" should be used.
+    - Columns should be named like the post field in the hooks `before_save_*`
+    or `after_save_*`. If the plugin does not use these hooks, they can be set
+    in a specific plugin.
+    - All needed columns should exists in the file, according to the model of
+    record and the hooks. For example, the import of data for the [Geolocation]
+    plugin implies to set not only "latitude" and "longitude", but "zoom_level",
+    "map_type" and "address" too. Their values can be set to empty or not.
+    - The header of the columns should be the name used in the manual standard
+    form.
+    - If the model allows the data to be multivalued, the column name should be
+    appended with a ':'.
+    - For update, as the way the plugins manage updates of their data varies,
+    the `updateMode` is not used for extraData.
+    - As Omeka jobs don't manage ACL, if a plugin uses it (usually no), the jobs
+    displatcher should be the synchronous one and be set in config.ini, so the
+    ACL will use the one of the current user:
+    ```
+    jobs.dispatcher.longRunning = "Omeka_Job_Dispatcher_Adapter_Synchronous"
+    ```
+
+* Update mode
+
+In the csv file, four columns may be added comparing to a normal file:
+    - `updateMode`
+        The mode of update can be:
+            - "Add" (add values to fields),
+            - "Replace" (remove values of the field before inserting new ones),
+            - "Replace all" (remove values of all imported fields before
+            inserting new ones).
+        This column is optional: by default, values are added.
+    - `updateIdentifier`
+        This column is optional: by default, the identifier is the "internal id"
+        of the record. If another one is used, for example
+        "Dublin Core:Identifier", "Dublin Core:Title" or "original_filename",
+        it should be unique, else only the first existing record will be
+        updated.
+    - `recordType`
+        The default record type is "Item", but each "File", "Collection" or any
+        other standard record can be updated too. "Any" can be used only when
+        identifier is not the internal id.
+    - `recordIdentifier`
+        This column is mandatory. According to `updateIdentifier` column, it can
+        be an internal id or anything else. If the record doesn't exist, the row
+        is skipped.
+
 Note: Currently, to update the collection, the item type, the public and
 featured parameters, and the tags, the standard Omeka "Modify" button should
-be used. To attach a file to an item, you need to use the column name `file`.
-* `test_collection_create.csv`: add an item into a new collection. A created
-collection is not removed if an error occurs during import. Parameters are
-"Mixed records", `tabulation` as column delimiter and no enclosure.
-* `test_collection_update.csv`: update metadata of a collection. Parameters are
-the same as in the previous file, except format.
-* `test_extra_data.csv`: show import of extra data that are not managed as
-elements, but as data in a specific table. The mechanism processes data as post,
-so it can uses the default hooks, specially "after_save_item". To try this test
-file, you should install [Geolocation] and to import mixed records with
-`tabulation` as column delimiter, no enclosure, and `|` as element, file and tag
-delimiters.
-* `test_extra_data_update.csv`: show update of extra data. To test it, you need
-to import the previous file first, then this one, with the same option (just
-change the format to "Update").
-Notes: To import extra data to items, the formats "Mixed records" and "Update"
-should be used. Columns should be named like the post field in the hooks
-"before_save_*" or "after_save_*". If the plugin does not use these hooks, they
-can be set in a specific plugin. All needed columns should exists in the file,
-according to the structure of the table and the hooks. For example, import of
-data for the [Geolocation] plugin implies to set not only "latitude" and
-"longitude", but "zoom_level", "map_type" and "address" too. Their values can be
-set to empty or not. The header of the columns should be the name used in the
-manual standard form. If this is a multivalued data, the column name should be
-appended with a ':'. For update, as the way plugins manage updates of their data
-varies, the `updateMode` is not used for extraData. Finally, as Omeka jobs don't
-manage ACL, if a plugin uses it (usually no), the jobs displatcher should be the
-synchronous one and be set in config.ini, so the ACL will use the one of the
-current user:
-```
-jobs.dispatcher.longRunning = "Omeka_Job_Dispatcher_Adapter_Synchronous"
-```
+be used. To attach a file to an item, you need to use the column name
+`file`.
 
-Columns can be ordered like in examples or not.
-
-_Warning_
+* Characters encoding
 
 Depending of your environment and database, if you imports items with encoded
 urls, they should be decoded when you import files. For example, you can import
@@ -203,20 +255,22 @@ The column "Skipped records" means that an item or a file can't be created,
 usually because of a bad url or a bad formatted row. You can check `error.log`
 for information.
 
+Currently, only imported items are counted.
+
 
 Warning
 -------
 
 Use it at your own risk.
 
-It's always recommended to backup your files and database so you can roll back
-if needed.
+It's always recommended to backup your files and database regularly so you can
+roll back if needed.
 
 
 Troubleshooting
 ---------------
 
-See online [Csv Import issues] and [GitHub Csv Import issues].
+See online [Csv Import issues] and [fork issues].
 
 
 License
@@ -243,13 +297,14 @@ Contact
 -------
 
 Current maintainers:
+
 * [Center for History & New Media]
+* Daniel Berthereau (see [Daniel-KM])
 
 This plugin has been built by [Center for History & New Media]. Next, the
 release 1.3.4 has been forked for [University of Iowa Libraries] and upgraded
 for [École des Ponts ParisTech] and [Pop Up Archive]. The fork of this plugin
-has been upgraded for Omeka 2.0 for [École des Mines ParisTech] and may be
-integrated into mainstream.
+has been upgraded for Omeka 2.0 for [Mines ParisTech].
 
 
 Copyright
@@ -260,18 +315,18 @@ Copyright
 * Copyright Shawn Averkamp, 2012
 
 
-[Omeka]: https://omeka.org "Omeka.org"
-[Csv Import]: https://github.com/omeka/plugin-CsvImport "Omeka plugin Csv Import"
-[Xml Import]: https://github.com/Daniel-KM/XmlImport "GitHub XmlImport"
+[Omeka]: https://omeka.org
+[Csv Import]: https://github.com/omeka/plugin-CsvImport
+[Xml Import]: https://github.com/Daniel-KM/XmlImport
 [Wikipedia]: https://www.wikipedia.org
 [Geolocation]: http://omeka.org/add-ons/plugins/geolocation
 [Csv Import issues]: http://omeka.org/forums/forum/plugins
-[GitHub Csv Import issues]: https://github.com/omeka/plugin-CsvImport/Issues "GitHub Csv Import"
-[GNU/GPL]: https://www.gnu.org/licenses/gpl-3.0.html "GNU/GPL v3"
+[fork issues]: https://github.com/Daniel-KM/CsvImport/Issues
+[GNU/GPL]: https://www.gnu.org/licenses/gpl-3.0.html
 [Center for History & New Media]: http://chnm.gmu.edu
 [Daniel-KM]: https://github.com/Daniel-KM "Daniel Berthereau"
 [saverkamp]: https://github.com/saverkamp "saverkamp"
 [University of Iowa Libraries]: http://www.lib.uiowa.edu
 [École des Ponts ParisTech]: http://bibliotheque.enpc.fr
 [Pop Up Archive]: http://popuparchive.org
-[École des Mines ParisTech]: http://bib.mines-paristech.fr
+[Mines ParisTech]: http://bib.mines-paristech.fr
