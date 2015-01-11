@@ -67,6 +67,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
         $this->session->itemsArePublic = $form->getValue('items_are_public');
         $this->session->itemsAreFeatured = $form->getValue('items_are_featured');
         $this->session->elementsAreHtml = $form->getValue('elements_are_html');
+        $this->session->containsExtraData = $form->getValue('contains_extra_data');
         $this->session->automapColumns = $form->getValue('automap_columns');
         $this->session->columnDelimiter = $columnDelimiter;
         $this->session->enclosure = $enclosure;
@@ -95,6 +96,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
 
         // All is valid, so we save settings.
         set_option('csv_import_html_elements', $this->session->elementsAreHtml);
+        set_option('csv_import_extra_data', $this->session->containsExtraData);
         set_option('csv_import_automap_columns', $this->session->automapColumns);
         set_option(CsvImport_RowIterator::COLUMN_DELIMITER_OPTION_NAME, $this->session->columnDelimiter);
         set_option(CsvImport_RowIterator::ENCLOSURE_OPTION_NAME, $this->session->enclosure);
@@ -249,32 +251,36 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
         }
         $skipColumnsText = '( ' . implode(',  ', $skipColumnsWrapped) . ' )';
 
+        // For the formats Mix and Update, no check of element names is done if
+        // there are extra data or if they should be ignored.
         $hasError = false;
-        foreach ($this->session->columnNames as $columnName) {
-            if (!in_array($columnName, $skipColumns) && !in_array($columnName, $neededColumns)) {
-                $data = explode(':', $columnName);
-                if (count($data) != 2) {
-                    $msg = __('Invalid column name: "%s".', $columnName)
-                        . ' ' . __('Column names must either be one of the following %s, or have the following format: {ElementSetName}:{ElementName}.', $skipColumnsText);
-                    $this->_helper->flashMessenger($msg, 'error');
-                    $hasError = true;
-                    break;
-                }
-            }
-        }
-
-        if (!$hasError) {
+        if (!(in_array($this->session->format, array('Mix', 'Update')) && $this->session->containsExtraData != 'no')) {
             foreach ($this->session->columnNames as $columnName) {
                 if (!in_array($columnName, $skipColumns) && !in_array($columnName, $neededColumns)) {
                     $data = explode(':', $columnName);
-                    // $data is like array('Element Set Name', 'Element Name');
-                    $elementSetName = $data[0];
-                    $elementName = $data[1];
-                    $element = $elementTable->findByElementSetNameAndElementName($elementSetName, $elementName);
-                    if (empty($element)) {
-                        $msg = __('Element "%s" is not found in element set "%s".', $elementName, $elementSetName);
+                    if (count($data) != 2) {
+                        $msg = __('Invalid column name: "%s".', $columnName)
+                            . ' ' . __('Column names must either be one of the following %s, or have the following format: {ElementSetName}:{ElementName}.', $skipColumnsText);
                         $this->_helper->flashMessenger($msg, 'error');
                         $hasError = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!$hasError) {
+                foreach ($this->session->columnNames as $columnName) {
+                    if (!in_array($columnName, $skipColumns) && !in_array($columnName, $neededColumns)) {
+                        $data = explode(':', $columnName);
+                        // $data is like array('Element Set Name', 'Element Name');
+                        $elementSetName = $data[0];
+                        $elementName = $data[1];
+                        $element = $elementTable->findByElementSetNameAndElementName($elementSetName, $elementName);
+                        if (empty($element)) {
+                            $msg = __('Element "%s" is not found in element set "%s".', $elementName, $elementSetName);
+                            $this->_helper->flashMessenger($msg, 'error');
+                            $hasError = true;
+                        }
                     }
                 }
             }
@@ -366,28 +372,42 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
                 case 'tags':
                     $columnMaps[] = new CsvImport_ColumnMap_Tag($heading, $tagDelimiter);
                     break;
+                // Default can be a normal element or, if not, an extra data
+                // element that can be added via the hook csv_import_extra_data.
+                // This doesn't work with "Report" format.
                 default:
                     switch ($this->session->format) {
                         case 'Report':
-                            $elementMap = new CsvImport_ColumnMap_ExportedElement($heading);
+                            $columnMap = new CsvImport_ColumnMap_ExportedElement($heading);
                             $options = array(
-                                'columnNameDelimiter' => $elementMap::DEFAULT_COLUMN_NAME_DELIMITER,
+                                'columnNameDelimiter' => $columnMap::DEFAULT_COLUMN_NAME_DELIMITER,
                                 'elementDelimiter' => $elementMap::DEFAULT_ELEMENT_DELIMITER,
                                 'isHtml' => $isHtml,
                             );
                             break;
                         case 'Mix':
                         case 'Update':
-                            $elementMap = new CsvImport_ColumnMap_MixElement($heading, $elementDelimiter);
-                            $options = array(
-                                'columnNameDelimiter' => $elementMap::DEFAULT_COLUMN_NAME_DELIMITER,
-                                'elementDelimiter' => $elementDelimiter,
-                                'isHtml' => $isHtml,
-                            );
+                            $columnMap = new CsvImport_ColumnMap_MixElement($heading, $elementDelimiter);
+                            // If extra data are not used or if this is an element.
+                            if ($this->session->containsExtraData != 'yes' || $columnMap->getElementId()) {
+                                $options = array(
+                                    'columnNameDelimiter' => $columnMap::DEFAULT_COLUMN_NAME_DELIMITER,
+                                    'elementDelimiter' => $elementDelimiter,
+                                    'isHtml' => $isHtml,
+                                );
+                            }
+                            // Allow extra data when this is not a true element.
+                            else {
+                                $columnMap = new CsvImport_ColumnMap_ExtraData($heading, $elementDelimiter);
+                                $options = array(
+                                    'columnNameDelimiter' => $columnMap::DEFAULT_COLUMN_NAME_DELIMITER,
+                                    'elementDelimiter' => $elementDelimiter,
+                                );
+                            }
                             break;
                     }
-                    $elementMap->setOptions($options);
-                    $columnMaps[] = $elementMap;
+                    $columnMap->setOptions($options);
+                    $columnMaps[] = $columnMap;
                     break;
             }
         }
@@ -510,6 +530,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
             'itemsArePublic',
             'itemsAreFeatured',
             'elementsAreHtml',
+            'containsExtraData',
             'ownerId',
         );
         foreach ($requiredKeys as $key) {

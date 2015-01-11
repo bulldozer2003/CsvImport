@@ -787,8 +787,12 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         $elementTexts = array_values(array_filter($elementTexts, 'self::_removeEmptyElement'));
         // Trim metadata to avoid spaces.
         $elementTexts = $this->_trimElementTexts($elementTexts);
+
+        $extraData = $result[CsvImport_ColumnMap::TYPE_EXTRA_DATA];
+        // Empty fields should not be removed. Fields are not trimmed.
+
         try {
-            $item = insert_item($itemMetadata, $elementTexts);
+            $item = $this->_insert_item($itemMetadata, $elementTexts, array(), $extraData);
         } catch (Omeka_Validator_Exception $e) {
             $this->_log($e, Zend_Log::ERR);
             return false;
@@ -1187,5 +1191,28 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         $msg = str_replace('%memory%', memory_get_usage(), $msg);
         $msg = str_replace('%time%', date('Y-m-d G:i:s'), $msg);
         _log("$prefix $msg", $priority);
+    }
+
+    /**
+     * Insert a new item into the Omeka database.
+     *
+     * Post data can be added, unlike insert_item().
+     *
+     * @see insert_item()
+     *
+     * @param array $metadata
+     * @param array $elementTexts
+     * @param array $fileMetadata
+     * @param array $postData
+     * @return Item
+     */
+    private function _insert_item($metadata = array(), $elementTexts = array(), $fileMetadata = array(), $postData = array())
+    {
+        $builder = new CsvImport_Builder_Item($this->getDb());
+        $builder->setRecordMetadata($metadata);
+        $builder->setElementTexts($elementTexts);
+        $builder->setPostData($postData);
+        $builder->setFileMetadata($fileMetadata);
+        return $builder->build();
     }
 }

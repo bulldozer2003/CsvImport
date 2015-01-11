@@ -23,6 +23,7 @@ abstract class CsvImport_ColumnMap
     const TYPE_PUBLIC = 'Public';
     const TYPE_FEATURED = 'Featured';
     const TYPE_ELEMENT = 'Element';
+    const TYPE_EXTRA_DATA = 'ExtraData';
     const TYPE_TAG = 'Tag';
     const TYPE_FILE = 'File';
     const TYPE_FILE_URL = 'FileUrl';

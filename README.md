@@ -92,7 +92,8 @@ can increase the time limit for process in the server or php configuration.
 Examples
 --------
 
-Six examples of csv files are available in the csv_files folder:
+Seven examples of csv files are available in the csv_files folder. They use free
+images of [Wikipedia], so import speed depends on the connection:
 
 * `test.csv`: a basic list of three books with images of Wikipedia, with
 non Dublin Core tags.
@@ -143,6 +144,27 @@ In this csv file, four columns may be added comparing to a normal file:
 Note: Currently, to update the collection, the item type, the public and
 featured parameters, and the tags, the standard Omeka "Modify" button should
 be used. To attach a file to an item, you need to use the column name `file`.
+* `test_extra_data.csv`: show import of extra data that are not managed as
+elements, but as data in a specific table. The mechanism processes data as post,
+so it can uses the default hooks, specially "after_save_item". To try this test
+file, you should install [Geolocation] and to import mixed records with
+`tabulation` as column delimiter, no enclosure, and `|` as element, file and tag
+delimiters.
+Notes: To import extra data to items, the formats "Mixed records" and "Update"
+should be used. Columns should be named like the post field in the hooks
+"before_save_*" or "after_save_*". If the plugin does not use these hooks, they
+can be set in a specific plugin. All needed columns should exists in the file,
+according to the structure of the table and the hooks. For example, import of
+data for the [Geolocation] plugin implies to set not only "latitude" and
+"longitude", but "zoom_level", "map_type" and "address" too. Their values can be
+set to empty or not. The header of the columns should be the name used in the
+manual standard form. If this is a multivalued data, the column name should be
+appended with a ':'. Finally, as Omeka jobs don't manage ACL, if a plugin uses
+it (usually no), the jobs displatcher should be the synchronous one and be set
+in config.ini, so the ACL will use the one of the current user:
+```
+jobs.dispatcher.longRunning = "Omeka_Job_Dispatcher_Adapter_Synchronous"
+```
 
 Columns can be ordered like in examples or not.
 
@@ -224,13 +246,15 @@ Copyright
 ---------
 
 * Copyright Center for History and New Media, 2008-2013
-* Copyright Daniel Berthereau, 2012-2014
+* Copyright Daniel Berthereau, 2012-2015
 * Copyright Shawn Averkamp, 2012
 
 
 [Omeka]: https://omeka.org "Omeka.org"
 [Csv Import]: https://github.com/omeka/plugin-CsvImport "Omeka plugin Csv Import"
 [Xml Import]: https://github.com/Daniel-KM/XmlImport "GitHub XmlImport"
+[Wikipedia]: https://www.wikipedia.org
+[Geolocation]: http://omeka.org/add-ons/plugins/geolocation
 [Csv Import issues]: http://omeka.org/forums/forum/plugins
 [GitHub Csv Import issues]: https://github.com/omeka/plugin-CsvImport/Issues "GitHub Csv Import"
 [GNU/GPL]: https://www.gnu.org/licenses/gpl-3.0.html "GNU/GPL v3"

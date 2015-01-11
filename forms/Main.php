@@ -76,6 +76,17 @@ class CsvImport_Form_Main extends Omeka_Form
             'value' => get_option('csv_import_html_elements'),
         ));
 
+       $this->addElement('select', 'contains_extra_data', array(
+            'label' => __('Contains extra data?'),
+            'description' => __('Other columns can be used as values for non standard data.'),
+            'multiOptions' =>array(
+                'no' => __('No, so unrecognized column names will be noticed'),
+                'ignore' => __('Ignore unrecognized columns name'),
+                'yes' => __("Yes, so column names won't be checked"),
+            ),
+            'value' => get_option('csv_import_extra_data'),
+        ));
+
         $this->addElement('checkbox', 'automap_columns', array(
             'label' => __('Automap column names to elements'),
             'description'=> __('Automatically maps columns to elements based on their column names.')
