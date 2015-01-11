@@ -62,6 +62,13 @@ class CsvImport_Form_Main extends Omeka_Form
             'multiOptions' => $values,
         ));
 
+        $this->addElement('checkbox', 'create_collections', array(
+            'label' => __('Create collections?'),
+            'description' => __("If the collection of an item doesn't exist, it will be created.") . '<br />'
+                .  __('Use "Update" to set metadata of a collection.'),
+            'value' => get_option('csv_import_create_collections'),
+        ));
+
         $this->addElement('checkbox', 'items_are_public', array(
             'label' => __('Make all items public?'),
         ));

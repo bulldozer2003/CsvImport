@@ -40,7 +40,8 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
     protected $_options = array(
         self::MEMORY_LIMIT_OPTION_NAME => '',
         self::PHP_PATH_OPTION_NAME => '',
-        'csv_import_html_elements' => TRUE,
+        'csv_import_create_collections' => FALSE,
+        'csv_import_html_elements' => FALSE,
         'csv_import_extra_data' => 'no',
         'csv_import_automap_columns' => TRUE,
         CsvImport_RowIterator::COLUMN_DELIMITER_OPTION_NAME => CsvImport_RowIterator::DEFAULT_COLUMN_DELIMITER,

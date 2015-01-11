@@ -9,12 +9,20 @@
 class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
 {
     /**
+     * @internal Due to the nature of Csv Import, designed to import items, the
+     * creation of collections, if allowed, should be made here. The new
+     * collection is not removed if an error occurs during import of the item.
+     */
+    private $_createCollection;
+
+    /**
      * @param string $columnName
      */
-    public function __construct($columnName)
+    public function __construct($columnName, $createCollection = false)
     {
         parent::__construct($columnName);
         $this->_type = CsvImport_ColumnMap::TYPE_COLLECTION;
+        $this->_createCollection = (boolean) $createCollection;
     }
 
     /**
@@ -31,6 +39,9 @@ class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
         $collectionTitle = $row[$this->_columnName];
         if ($collectionTitle != '') {
             $collection = $this->_getCollectionByTitle($collectionTitle);
+            if (empty($collection) && $this->_createCollection) {
+                $collection = $this->_createCollectionFromTitle($collectionTitle);
+            }
             if ($collection) {
                 $result = $collection->id;
             }
@@ -60,10 +71,28 @@ class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
         $select->where("s.text = ?", $name);
 
         $collection = $collectionTable->fetchObject($select);
-        if (!$collection) {
+        if (!$collection && !$this->_createCollection) {
             _log("Collection not found. Collections must be created with identical names prior to import", Zend_Log::NOTICE);
             return false;
         }
+        return $collection;
+    }
+
+    /**
+     * Create a new collection from a simple raw title.
+     *
+     * @param string $title
+     * @return Collection
+     */
+    private function _createCollectionFromTitle($title)
+    {
+        $collection = new Collection;
+        $collection->save();
+        update_collection($collection, array(), array(
+            'Dublin Core' => array(
+                'Title' => array(
+                    array('text' => $title, 'html' => false),
+        ))));
         return $collection;
     }
 }

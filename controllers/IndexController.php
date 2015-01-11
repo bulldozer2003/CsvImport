@@ -64,6 +64,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
         $this->session->format = $form->getValue('format');
         $this->session->itemTypeId = $form->getValue('item_type_id');
         $this->session->collectionId = $form->getValue('collection_id');
+        $this->session->createCollections = $form->getValue('create_collections');
         $this->session->itemsArePublic = $form->getValue('items_are_public');
         $this->session->itemsAreFeatured = $form->getValue('items_are_featured');
         $this->session->elementsAreHtml = $form->getValue('elements_are_html');
@@ -95,6 +96,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
         $this->session->ownerId = $this->getInvokeArg('bootstrap')->currentuser->id;
 
         // All is valid, so we save settings.
+        set_option('csv_import_create_collections', $this->session->createCollections);
         set_option('csv_import_html_elements', $this->session->elementsAreHtml);
         set_option('csv_import_extra_data', $this->session->containsExtraData);
         set_option('csv_import_automap_columns', $this->session->automapColumns);
@@ -316,6 +318,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
                 // Do not allow the user to specify it.
                 $tagDelimiter = ',';
                 $fileDelimiter = ',';
+                $createCollections = false;
                 // Nevertheless, user can choose to import all elements as html
                 // or as raw text.
                 $isHtml = (boolean) $this->session->elementsAreHtml;
@@ -325,6 +328,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
                 $elementDelimiter = $this->session->elementDelimiter;
                 $tagDelimiter = $this->session->tagDelimiter;
                 $fileDelimiter = $this->session->fileDelimiter;
+                $createCollections = (boolean) $this->session->createCollections;
                 $isHtml = (boolean) $this->session->elementsAreHtml;
                 break;
             default:
@@ -355,7 +359,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
                     $columnMaps[] = new CsvImport_ColumnMap_ItemType($heading);
                     break;
                 case 'collection':
-                    $columnMaps[] = new CsvImport_ColumnMap_Collection($heading);
+                    $columnMaps[] = new CsvImport_ColumnMap_Collection($heading, $createCollections);
                     break;
                 case 'public':
                     $columnMaps[] = new CsvImport_ColumnMap_Public($heading);
@@ -527,6 +531,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
             'format',
             'itemTypeId',
             'collectionId',
+            'createCollections',
             'itemsArePublic',
             'itemsAreFeatured',
             'elementsAreHtml',

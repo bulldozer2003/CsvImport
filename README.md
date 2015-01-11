@@ -92,7 +92,7 @@ can increase the time limit for process in the server or php configuration.
 Examples
 --------
 
-Eight examples of csv files are available in the csv_files folder. They use free
+Ten examples of csv files are available in the csv_files folder. They use free
 images of [Wikipedia], so import speed depends on the connection:
 
 * `test.csv`: a basic list of three books with images of Wikipedia, with
@@ -144,6 +144,11 @@ In this csv file, four columns may be added comparing to a normal file:
 Note: Currently, to update the collection, the item type, the public and
 featured parameters, and the tags, the standard Omeka "Modify" button should
 be used. To attach a file to an item, you need to use the column name `file`.
+* `test_collection_create.csv`: add an item into a new collection. A created
+collection is not removed if an error occurs during import. Parameters are
+"Mixed records", `tabulation` as column delimiter and no enclosure.
+* `test_collection_update.csv`: update metadata of a collection. Parameters are
+the same as in the previous file, except format.
 * `test_extra_data.csv`: show import of extra data that are not managed as
 elements, but as data in a specific table. The mechanism processes data as post,
 so it can uses the default hooks, specially "after_save_item". To try this test

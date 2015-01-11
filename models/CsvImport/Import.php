@@ -1086,6 +1086,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
                     true);
             }
         }
+        // Record identifier is an existing element text.
         else {
             $db = get_db();
 
@@ -1104,10 +1105,8 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             }
 
             $sql = "
-                SELECT items.id, element_texts.record_type
-                FROM {$db->Item} items
-                    JOIN {$db->ElementText} element_texts
-                        ON items.id = element_texts.record_id
+                SELECT element_texts.record_type, element_texts.record_id
+                FROM {$db->ElementText} element_texts
                     JOIN {$db->Element} elements
                         ON element_texts.element_id = elements.id
                     JOIN {$db->ElementSet} element_sets
@@ -1121,7 +1120,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             $result = $db->fetchRow($sql, $bind);
 
             if (!empty($result)) {
-                $record = get_record_by_id($result['record_type'], $result['id']);
+                $record = get_record_by_id($result['record_type'], $result['record_id']);
             }
         }
 
