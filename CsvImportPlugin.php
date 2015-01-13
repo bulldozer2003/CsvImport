@@ -143,95 +143,26 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
             $db->query($sql);
         }
 
-        if (version_compare($oldVersion, '2.0.2', '<=')) {
-            $sql = "SHOW COLUMNS FROM `{$db->prefix}csv_import_imports` LIKE 'enclosure'";
-            $result = $db->query($sql)->fetch();
-            if (empty($result)) {
-                $sql = "
-                    ALTER TABLE `{$db->prefix}csv_import_imports`
-                    ADD `enclosure` varchar(1) collate utf8_unicode_ci NOT NULL AFTER `delimiter`
-                ";
-                $db->query($sql);
-            }
+        if (version_compare($oldVersion, '2.0.3', '<=')) {
             set_option(CsvImport_RowIterator::ENCLOSURE_OPTION_NAME, CsvImport_RowIterator::DEFAULT_ENCLOSURE);
-        }
-
-        if (version_compare($oldVersion, '2.1', '<=')) {
-            $sql = "SHOW COLUMNS FROM `{$db->prefix}csv_import_imports` LIKE 'record_type_id'";
-            $result = $db->query($sql)->fetch();
-            if (!empty($result)) {
-                $sql = "
-                    ALTER TABLE `{$db->prefix}csv_import_imports`
-                    CHANGE `record_type_id` `format` varchar(255) collate utf8_unicode_ci NOT NULL AFTER `collection_id`
-                ";
-                $db->query($sql);
-            }
-
-            $sql = "SHOW COLUMNS FROM `{$db->prefix}csv_import_imports` LIKE 'format'";
-            $result = $db->query($sql)->fetch();
-            if (empty($result)) {
-                $sql = "
-                    ALTER TABLE `{$db->prefix}csv_import_imports`
-                    ADD `format` varchar(255) collate utf8_unicode_ci NOT NULL AFTER `collection_id`
-                ";
-                $db->query($sql);
-            }
-
-            $sql = "SHOW COLUMNS FROM `{$db->prefix}csv_import_imports` LIKE 'row_count'";
-            $result = $db->query($sql)->fetch();
-            if (empty($result)) {
-                $sql = "
-                    ALTER TABLE `{$db->prefix}csv_import_imports`
-                    ADD `row_count` int(10) unsigned NOT NULL AFTER `status`
-                ";
-                $db->query($sql);
-            }
-
-            $sql = "SHOW COLUMNS FROM `{$db->prefix}csv_import_imported_items` LIKE 'source_item_id'";
-            $result = $db->query($sql)->fetch();
-            if (empty($result)) {
-                $sql = "
-                    ALTER TABLE `{$db->prefix}csv_import_imported_items`
-                    ADD `source_item_id` varchar(255) collate utf8_unicode_ci NOT NULL AFTER `item_id`
-                ";
-                $db->query($sql);
-            }
+            $sql = "
+                ALTER TABLE `{$db->prefix}csv_import_imports`
+                ADD `format` varchar(255) collate utf8_unicode_ci NOT NULL AFTER `collection_id`,
+                ADD `enclosure` varchar(1) collate utf8_unicode_ci NOT NULL AFTER `delimiter`,
+                ADD `row_count` int(10) unsigned NOT NULL AFTER `status`
+            ";
+            $db->query($sql);
 
             // Update index. Item id is no more unique, because CsvImport can
             // import files separately, so an item can be updated. Furthermore,
             // now, any metadata can be updated individualy too.
-            $sql = "SHOW INDEX FROM `{$db->prefix}csv_import_imported_items` WHERE KEY_NAME = 'source_item_id_import_id'";
-            $result = $db->query($sql)->fetch();
-            if (!empty($result)) {
-                $sql = "
-                    ALTER TABLE `{$db->prefix}csv_import_imported_items`
-                    DROP INDEX `source_item_id_import_id`
-                ";
-                $db->query($sql);
-            }
             $sql = "
                 ALTER TABLE `{$db->prefix}csv_import_imported_items`
+                ADD `source_item_id` varchar(255) collate utf8_unicode_ci NOT NULL AFTER `item_id`,
+                DROP INDEX `item_id`,
                 ADD INDEX `source_item_id_import_id` (`source_item_id`, `import_id`)
             ";
             $db->query($sql);
-            $sql = "SHOW INDEX FROM `{$db->prefix}csv_import_imported_items` WHERE KEY_NAME = 'item_id'";
-            $result = $db->query($sql)->fetch();
-            if (!empty($result)) {
-                $sql = "
-                    ALTER TABLE `{$db->prefix}csv_import_imported_items`
-                    DROP INDEX `item_id`
-                ";
-                $db->query($sql);
-            }
-            $sql = "SHOW INDEX FROM `{$db->prefix}csv_import_imported_items` WHERE KEY_NAME = 'import_id'";
-            $result = $db->query($sql)->fetch();
-            if (!empty($result)) {
-                $sql = "
-                    ALTER TABLE `{$db->prefix}csv_import_imported_items`
-                    ADD INDEX (`import_id`)
-                ";
-                $db->query($sql);
-            }
         }
     }
 
