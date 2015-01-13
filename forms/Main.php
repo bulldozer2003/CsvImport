@@ -48,6 +48,12 @@ class CsvImport_Form_Main extends Omeka_Form
             'required' => TRUE,
         ));
 
+        $this->_addColumnDelimiterElement();
+        $this->_addEnclosureElement();
+        $this->_addElementDelimiterElement();
+        $this->_addTagDelimiterElement();
+        $this->_addFileDelimiterElement();
+
         $values = get_db()->getTable('ItemType')->findPairsForSelectForm();
         $values = array('' => __('Select item type')) + $values;
         $this->addElement('select', 'item_type_id', array(
@@ -60,13 +66,6 @@ class CsvImport_Form_Main extends Omeka_Form
         $this->addElement('select', 'collection_id', array(
             'label' => __('Select default collection'),
             'multiOptions' => $values,
-        ));
-
-        $this->addElement('checkbox', 'create_collections', array(
-            'label' => __('Create collections?'),
-            'description' => __("If the collection of an item doesn't exist, it will be created.") . '<br />'
-                .  __('Use "Update" to set metadata of a collection.'),
-            'value' => get_option('csv_import_create_collections'),
         ));
 
         $this->addElement('checkbox', 'items_are_public', array(
@@ -83,12 +82,19 @@ class CsvImport_Form_Main extends Omeka_Form
             'value' => get_option('csv_import_html_elements'),
         ));
 
+        $this->addElement('checkbox', 'create_collections', array(
+            'label' => __('Create collections?'),
+            'description' => __("If the collection of an item doesn't exist, it will be created.") . '<br />'
+                .  __('Use "Update" to set metadata of a collection.'),
+            'value' => get_option('csv_import_create_collections'),
+        ));
+
        $this->addElement('select', 'contains_extra_data', array(
             'label' => __('Contains extra data?'),
             'description' => __('Other columns can be used as values for non standard data.'),
             'multiOptions' =>array(
                 'no' => __('No, so unrecognized column names will be noticed'),
-                'ignore' => __('Ignore unrecognized columns name'),
+                'ignore' => __('Ignore unrecognized column names'),
                 'yes' => __("Yes, so column names won't be checked"),
             ),
             'value' => get_option('csv_import_extra_data'),
@@ -101,14 +107,57 @@ class CsvImport_Form_Main extends Omeka_Form
             'value' => get_option('csv_import_automap_columns'),
         ));
 
-        $this->_addColumnDelimiterElement();
-        $this->_addEnclosureElement();
-        $this->_addElementDelimiterElement();
-        $this->_addTagDelimiterElement();
-        $this->_addFileDelimiterElement();
+        $this->addDisplayGroup(
+            array(
+                'csv_file',
+                'format',
+            ),
+            'file_type'
+        );
 
-        $this->applyOmekaStyles();
-        $this->setAutoApplyOmekaStyles(false);
+        $this->addDisplayGroup(
+            array(
+                'column_delimiter_name',
+                'column_delimiter',
+                'enclosure',
+                'element_delimiter_name',
+                'element_delimiter',
+                'tag_delimiter_name',
+                'tag_delimiter',
+                'file_delimiter_name',
+                'file_delimiter',
+            ),
+            'csv_format',
+            array(
+                'legend' => __('CSV format'),
+                'description' => __('Set delimiters and enclosure used in the file.'),
+        ));
+
+        $this->addDisplayGroup(
+            array(
+                'item_type_id',
+                'collection_id',
+                'items_are_public',
+                'items_are_featured',
+                'elements_are_html',
+            ),
+            'default_values',
+            array(
+                'legend' => __('Default values'),
+                'description' => __("Set the default values to use when the column doesn't exist."),
+        ));
+
+        $this->addDisplayGroup(
+            array(
+                'create_collections',
+                'contains_extra_data',
+                'automap_columns',
+            ),
+            'import_features',
+            array(
+                'legend' => __('Features to use'),
+                'description' => __('Set features used to process the file.'),
+        ));
 
         $submit = $this->createElement(
             'submit', 'submit',
@@ -122,6 +171,9 @@ class CsvImport_Form_Main extends Omeka_Form
                         'class' => 'csvimportnext'))));
 
         $this->addElement($submit);
+
+        $this->applyOmekaStyles();
+        $this->setAutoApplyOmekaStyles(false);
     }
 
     /**

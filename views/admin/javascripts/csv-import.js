@@ -75,22 +75,31 @@ Omeka.CsvImport = {};
         var fieldsUpdate = $('div.field').has('#create_collections, #elements_are_html, #contains_extra_data, #column_delimiter_name, #column_delimiter, #enclosure, #element_delimiter_name, #element_delimiter, #tag_delimiter_name, #tag_delimiter, #file_delimiter_name, #file_delimiter');
         var fieldsUpdateNo = $('div.field').has('#item_type_id, #collection_id, #items_are_public, #items_are_featured, #automap_columns');
         var fieldsAll = $('div.field').has('#item_type_id, #collection_id, #create_collections, #items_are_public, #items_are_featured, #elements_are_html, #contains_extra_data, #automap_columns, #column_delimiter_name, #column_delimiter, #element_delimiter_name, #element_delimiter, #enclosure, #tag_delimiter_name, #tag_delimiter, #file_delimiter_name, #file_delimiter');
+        var fieldSets =  $('#fieldset-csv_format, #fieldset-default_values, #fieldset-import_features');
         if ($('#format-Report').is(':checked')) {
+            $('#fieldset-default_values').slideDown();
+            $('#fieldset-csv_format, #fieldset-import_features').slideUp();
             fieldsReport.slideDown();
             fieldsReportNo.slideUp();
         } else if ($('#format-Item').is(':checked')) {
+            fieldSets.slideDown();
             fieldsItem.slideDown();
             fieldsItemNo.slideUp();
         } else if ($('#format-File').is(':checked')) {
+            $('#fieldset-default_values').slideUp();
+            $('#fieldset-csv_format, #fieldset-import_features').slideDown();
             fieldsFile.slideDown();
             fieldsFileNo.slideUp();
         } else if ($('#format-Mix').is(':checked')) {
+            fieldSets.slideDown();
             fieldsMix.slideDown();
             fieldsMixNo.slideUp();
         } else if ($('#format-Update').is(':checked')) {
+            fieldSets.slideDown();
             fieldsUpdate.slideDown();
             fieldsUpdateNo.slideUp();
         } else {
+            fieldSets.slideUp();
             fieldsAll.slideUp();
         };
     };
