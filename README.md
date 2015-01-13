@@ -104,7 +104,7 @@ images of [Wikipedia], so import speed depends on the connection:
     A basic list of three books with images of Wikipedia, with non Dublin Core
     tags.
 
-* `test_automap_columns_to_elements.csv`
+* `test_automap.csv`
 
     The same list with some Dublin Core attributes in order to automap the
     columns with the Omeka fields.
@@ -139,13 +139,13 @@ images of [Wikipedia], so import speed depends on the connection:
     delimiter. Note that in the csv file, file rows should always be  after the
     item to which they are attached.
 
-* `test_update_records.csv`
+* `test_mixed_records_update.csv`
 
     A file used to show how to update metadata of item and files. To try it, you
     should import "test_mixed_recods.csv" above first, then choose this file and
     check `Update records` in the form.
 
-* `test_collection_create.csv`
+* `test_collection.csv`
 
     Add an item into a new collection. A created collection is not removed if an
     error occurs during import. Parameters are "Mixed records", `tabulation` as
@@ -192,7 +192,7 @@ Notes
     - If the model allows the data to be multivalued, the column name should be
     appended with a ':'.
     - For update, as the way the plugins manage updates of their data varies,
-    the `updateMode` is not used for extraData.
+    the `updateMode` is not used for extra data.
     - As Omeka jobs don't manage ACL, if a plugin uses it (usually no), the jobs
     displatcher should be the synchronous one and be set in config.ini, so the
     ACL will use the one of the current user:
@@ -203,6 +203,7 @@ Notes
 * Update mode
 
 In the csv file, four columns may be added comparing to a normal file:
+
     - `updateMode`
         The mode of update can be:
             - "Add" (add values to fields),
@@ -234,8 +235,8 @@ be used. To attach a file to an item, you need to use the column name
 
 Depending of your environment and database, if you imports items with encoded
 urls, they should be decoded when you import files. For example, you can import
-an item with the file "Edmond_Dant%C3%A8s.jpg", but you may import your file
-metadata with the filename "Edmond_Dantès.jpg". Furthermore, filenames may be or
+an item with the file `Edmond_Dant%C3%A8s.jpg`, but you may import your file
+metadata with the filename `Edmond_Dantès.jpg`. Furthermore, filenames may be or
 not case sensitive.
 
 
