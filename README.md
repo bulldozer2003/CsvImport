@@ -163,12 +163,12 @@ images of [Wikipedia], so import speed depends on the connection:
     default hooks, specially `after_save_item`. To try this test file, you
     should install [Geolocation] and to import mixed records with `tabulation`
     as column delimiter, no enclosure, and `|` as element, file and tag
-    delimiters.
+    delimiters. You should set the option "Contains extra data" to "Yes" too.
 
 * `test_extra_data_update.csv`
 
     Show update of extra data. To test it, you need to import the previous file
-    first, then this one, with the same option (just change the format to
+    first, then this one, with the same options (just change the format to
     "Update").
 
 Columns can be ordered in any order.
@@ -180,6 +180,7 @@ Notes
 * Import and update of extra data
 
     - The formats "Mixed records" and "Update" should be used.
+    - The "Contains extra data" parameter should be set to "Yes".
     - Columns should be named like the post field in the hooks `before_save_*`
     or `after_save_*`. If the plugin does not use these hooks, they can be set
     in a specific plugin.
@@ -192,7 +193,9 @@ Notes
     - If the model allows the data to be multivalued, the column name should be
     appended with a ':'.
     - For update, as the way the plugins manage updates of their data varies,
-    the `updateMode` is not used for extra data.
+    the `updateMode` is not used for extra data. So existing data may be needed
+    in the update file in order to not be overwritten (this is the case for the
+    [Geolocation] plugin).
     - As Omeka jobs don't manage ACL, if a plugin uses it (usually no), the jobs
     displatcher should be the synchronous one and be set in config.ini, so the
     ACL will use the one of the current user:
@@ -205,23 +208,30 @@ Notes
 In the csv file, four columns may be added comparing to a normal file:
 
     - `updateMode`
+
         The mode of update can be:
             - "Add" (add values to fields),
             - "Replace" (remove values of the field before inserting new ones),
             - "Replace all" (remove values of all imported fields before
             inserting new ones).
         This column is optional: by default, values are added.
+
     - `updateIdentifier`
+
         This column is optional: by default, the identifier is the "internal id"
         of the record. If another one is used, for example
         "Dublin Core:Identifier", "Dublin Core:Title" or "original_filename",
         it should be unique, else only the first existing record will be
         updated.
+
     - `recordType`
+
         The default record type is "Item", but each "File", "Collection" or any
         other standard record can be updated too. "Any" can be used only when
         identifier is not the internal id.
+
     - `recordIdentifier`
+
         This column is mandatory. According to `updateIdentifier` column, it can
         be an internal id or anything else. If the record doesn't exist, the row
         is skipped.

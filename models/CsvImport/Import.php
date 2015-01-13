@@ -1074,12 +1074,12 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         if (empty($recordIdentifier)) {
         }
         elseif ($identifier == 'internal id') {
-            if ($recordType != 'Any') {
+            if (!empty($recordType) && $recordType != 'Any') {
                 $record = get_record_by_id($recordType, $recordIdentifier);
             }
         }
         elseif ($identifier == 'original_filename') {
-            if ($recordType == 'Any' || $recordType == 'File') {
+            if (empty($recordType) || $recordType == 'Any' || $recordType == 'File') {
                 $record = get_db()->getTable('File')->findBySql(
                     'original_filename = ?',
                     array('original_filename' => $recordIdentifier),
@@ -1099,7 +1099,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             $bind[] = $element;
             $bind[] = $recordIdentifier;
             $sql_record_type = '';
-            if ($recordType !== 'Any') {
+            if (!empty($recordType) && $recordType != 'Any') {
                 $sql_record_type = 'AND element_texts.record_type = ?';
                 $bind[] = $recordType;
             }
