@@ -55,14 +55,14 @@ class CsvImport_Form_Main extends Omeka_Form
         $this->_addFileDelimiterElement();
 
         $values = get_db()->getTable('ItemType')->findPairsForSelectForm();
-        $values = array('' => __('Select item type')) + $values;
+        $values = array('' => __('Default item type')) + $values;
         $this->addElement('select', 'item_type_id', array(
-            'label' => __('Select default item type'),
+            'label' => __('Default item type'),
             'multiOptions' => $values,
         ));
 
         $values = get_db()->getTable('Collection')->findPairsForSelectForm();
-        $values = array('' => __('Select collection')) + $values;
+        $values = array('' => __('Default collection')) + $values;
         $this->addElement('select', 'collection_id', array(
             'label' => __('Select default collection'),
             'multiOptions' => $values,
@@ -119,6 +119,7 @@ class CsvImport_Form_Main extends Omeka_Form
             array(
                 'column_delimiter_name',
                 'column_delimiter',
+                'enclosure_name',
                 'enclosure',
                 'element_delimiter_name',
                 'element_delimiter',
@@ -292,11 +293,25 @@ class CsvImport_Form_Main extends Omeka_Form
     protected function _addEnclosureElement()
     {
         $enclosure = $this->_enclosure;
-        $this->addElement('text', 'enclosure', array(
+        $enclosuresList = CsvImport_IndexController::getEnclosuresList();
+        $enclosureCurrent = in_array($enclosure, $enclosuresList)
+            ? array_search($enclosure, $enclosuresList)
+            : $enclosure;
+
+        $this->addElement('select', 'enclosure_name', array(
             'label' => __('Choose Enclosure'),
             'description' => __('A zero or single character that will be used to separate columns '
                 . 'clearly. It allows to use the column delimiter as a character in a field. By default, '
                 . 'the quotation mark « " » is used. Enclosure can be omitted in the csv file.'),
+            'multiOptions' => array(
+                'double-quote' => __('" (double quote)'),
+                'quote' => __(" ' (single quote)"),
+                'empty' => __('(empty)'),
+                'custom' => __('Custom'),
+            ),
+            'value' => $enclosureCurrent,
+        ));
+        $this->addElement('text', 'enclosure', array(
             'value' => $enclosure,
             'required' => false,
             'size' => '1',

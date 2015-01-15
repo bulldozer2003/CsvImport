@@ -48,7 +48,11 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
         $columnDelimiter = isset($delimitersList[$columnDelimiterName])
             ? $delimitersList[$columnDelimiterName]
             : $form->getValue('column_delimiter');
-        $enclosure = $form->getValue('enclosure');
+        $enclosuresList = self::getEnclosuresList();
+        $enclosureName = $form->getValue('enclosure_name');
+        $enclosure = isset($enclosuresList[$enclosureName])
+            ? $enclosuresList[$enclosureName]
+            : $form->getValue('enclosure');
 
         $file = new CsvImport_File($filePath, $columnDelimiter, $enclosure);
 
@@ -599,6 +603,20 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
             'space'        => ' ',
             'double space' => '  ',
             'empty'        => '',
+        );
+    }
+
+    /**
+     * Return the list of standard enclosures.
+     *
+     * @return array The list of standard enclosures.
+     */
+    public static function getEnclosuresList()
+    {
+        return array(
+            'double-quote' => '"',
+            'quote' => "'",
+            'empty' => '',
         );
     }
 }
