@@ -935,7 +935,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         $file = get_record_by_id('File', $file_id);
 
         // Update file with new metadata.
-        $this->_updateRecord($file, $result);
+        $this->_updateRecord($file, $result, CsvImport_ColumnMap_UpdateMode::MODE_ADD);
         return $file;
     }
 
@@ -967,7 +967,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         }
 
         // Update file with new metadata.
-        $this->_updateRecord($file, $result);
+        $this->_updateRecord($file, $result, CsvImport_ColumnMap_UpdateMode::MODE_ADD);
         return $file;
     }
 
@@ -1012,7 +1012,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         // Update of a record.
         $updateMode = isset($map[CsvImport_ColumnMap::TYPE_UPDATE_MODE])
             ? $map[CsvImport_ColumnMap::TYPE_UPDATE_MODE]
-            : 'Add';
+            : CsvImport_ColumnMap_UpdateMode::DEFAULT_UPDATE_MODE;
 
         return $this->_updateRecord($record, $map, $updateMode);
     }
@@ -1022,23 +1022,31 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      *
      * @param Record $record An existing and checked record object.
      * @param array $map A mapped row.
-     * @param string $mode Update mode: "Add", "Replace" or "Replace all".
+     * @param string $mode Update mode: "Update", "Add" or "Replace".
      *
      * @return Record|boolean
      *   The updated record or false if metadata can't be updated.
      */
-    protected function _updateRecord($record, $map, $mode = 'Add')
-    {
+    protected function _updateRecord(
+        $record,
+        $map,
+        $mode = CsvImport_ColumnMap_UpdateMode::DEFAULT_UPDATE_MODE
+    ) {
+        // Check mode.
+        if (!$mode) {
+            return false;
+        }
+
         // Import metadata.
         $elementTexts = $map[CsvImport_ColumnMap::TYPE_ELEMENT];
         // Trim metadata to avoid spaces.
         $elementTexts = $this->_trimElementTexts($elementTexts);
         // Keep only non empty fields to avoid removing them to allow update.
-        if ($mode == 'Add' || $mode == 'Replace') {
+        if ($mode == CsvImport_ColumnMap_UpdateMode::MODE_ADD || $mode == CsvImport_ColumnMap_UpdateMode::MODE_REPLACE) {
             $elementTexts = array_values(array_filter($elementTexts, 'self::_removeEmptyElement'));
         }
         // Overwrite existing element text values if wanted.
-        if ($mode == 'Replace' || $mode == 'Replace all') {
+        if ($mode == CsvImport_ColumnMap_UpdateMode::MODE_UPDATE || $mode == CsvImport_ColumnMap_UpdateMode::MODE_REPLACE) {
             foreach ($elementTexts as $key => $info) {
                 if ($info['element_id']) {
                     $record->deleteElementTextsbyElementId((array) $info['element_id']);
@@ -1230,12 +1238,15 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      *
      * @param Record $record
      * @param array $extraData
-     * @param string $mode Update mode: "Add", "Replace" or "Replace all".
+     * @param string $mode Update mode: "Update", "Add" or "Replace".
      * @return void
      */
-    private function _setExtraData($record, $extraData, $mode = 'Add')
-    {
-        if (empty($extraData)) {
+    private function _setExtraData(
+        $record,
+        $extraData,
+        $mode = CsvImport_ColumnMap_UpdateMode::DEFAULT_UPDATE_MODE
+    ) {
+        if (empty($extraData) || !$mode) {
             return;
         }
 

@@ -210,11 +210,12 @@ In the csv file, four columns may be added comparing to a normal file:
     - `updateMode`
 
         The mode of update can be:
-            - "Add" (add values to fields),
-            - "Replace" (remove values of the field before inserting new ones),
-            - "Replace all" (remove values of all imported fields before
-            inserting new ones).
-        This column is optional: by default, values are added.
+            - "Update": remove values of all imported fields before inserting
+            new ones;
+            - "Add": add values to fields;
+            - "Replace": same as update, except that each field is updated only
+            if its new value is not empty.
+        This column is optional: by default, values are updated.
 
     - `updateIdentifier`
 
