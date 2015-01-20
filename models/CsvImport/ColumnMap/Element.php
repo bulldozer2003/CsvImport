@@ -23,12 +23,9 @@ class CsvImport_ColumnMap_Element extends CsvImport_ColumnMap
     {
         parent::__construct($columnName);
         $this->_type = CsvImport_ColumnMap::TYPE_ELEMENT;
-
-        if ($elementDelimiter !== null) {
-            $this->_elementDelimiter = $elementDelimiter;
-        } else {
-            $this->_elementDelimiter = self::getDefaultElementDelimiter();
-        }
+        $this->_elementDelimiter = $elementDelimiter === null
+            ? self::getDefaultElementDelimiter()
+            : $elementDelimiter;
     }
 
     /**

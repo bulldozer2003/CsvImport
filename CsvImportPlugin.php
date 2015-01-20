@@ -40,15 +40,17 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
     protected $_options = array(
         self::MEMORY_LIMIT_OPTION_NAME => '',
         self::PHP_PATH_OPTION_NAME => '',
-        'csv_import_create_collections' => FALSE,
-        'csv_import_html_elements' => FALSE,
-        'csv_import_extra_data' => 'no',
-        'csv_import_automap_columns' => TRUE,
+        CsvImport_ColumnMap_IdentifierField::IDENTIFIER_FIELD_OPTION_NAME => CsvImport_ColumnMap_IdentifierField::DEFAULT_IDENTIFIER_FIELD,
         CsvImport_RowIterator::COLUMN_DELIMITER_OPTION_NAME => CsvImport_RowIterator::DEFAULT_COLUMN_DELIMITER,
         CsvImport_RowIterator::ENCLOSURE_OPTION_NAME => CsvImport_RowIterator::DEFAULT_ENCLOSURE,
         CsvImport_ColumnMap_Element::ELEMENT_DELIMITER_OPTION_NAME => CsvImport_ColumnMap_Element::DEFAULT_ELEMENT_DELIMITER,
         CsvImport_ColumnMap_Tag::TAG_DELIMITER_OPTION_NAME => CsvImport_ColumnMap_Tag::DEFAULT_TAG_DELIMITER,
         CsvImport_ColumnMap_File::FILE_DELIMITER_OPTION_NAME => CsvImport_ColumnMap_File::DEFAULT_FILE_DELIMITER,
+        // Option used during the first step only.
+        'csv_import_html_elements' => FALSE,
+        'csv_import_automap_columns' => TRUE,
+        'csv_import_create_collections' => FALSE,
+        'csv_import_extra_data' => 'manual',
     );
 
     /**
@@ -59,37 +61,39 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
         $db = $this->_db;
 
         // Create csv imports table.
+        // Note: CsvImport_Import and CsvImport_ImportedRecord are standard Zend
+        // records, but not Omeka ones fully.
         $db->query("CREATE TABLE IF NOT EXISTS `{$db->prefix}csv_import_imports` (
             `id` int(10) unsigned NOT NULL auto_increment,
-            `item_type_id` int(10) unsigned NULL,
-            `collection_id` int(10) unsigned NULL,
             `format` varchar(255) collate utf8_unicode_ci NOT NULL,
-            `owner_id` int unsigned NOT NULL,
             `delimiter` varchar(1) collate utf8_unicode_ci NOT NULL,
             `enclosure` varchar(1) collate utf8_unicode_ci NOT NULL,
-            `original_filename` text collate utf8_unicode_ci NOT NULL,
-            `file_path` text collate utf8_unicode_ci NOT NULL,
-            `file_position` bigint unsigned NOT NULL,
             `status` varchar(255) collate utf8_unicode_ci,
             `row_count` int(10) unsigned NOT NULL,
             `skipped_row_count` int(10) unsigned NOT NULL,
-            `skipped_item_count` int(10) unsigned NOT NULL,
-            `is_public` tinyint(1) default '0',
-            `is_featured` tinyint(1) default '0',
+            `skipped_record_count` int(10) unsigned NOT NULL,
+            `updated_record_count` int(10) unsigned NOT NULL,
+            `file_position` bigint unsigned NOT NULL,
+            `original_filename` text collate utf8_unicode_ci NOT NULL,
+            `file_path` text collate utf8_unicode_ci NOT NULL,
+            `serialized_default_values` text collate utf8_unicode_ci NOT NULL,
             `serialized_column_maps` text collate utf8_unicode_ci NOT NULL,
+            `owner_id` int unsigned NOT NULL,
             `added` timestamp NOT NULL default '0000-00-00 00:00:00',
             PRIMARY KEY  (`id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
 
-        // create csv imported items table
-        $db->query("CREATE TABLE IF NOT EXISTS `{$db->prefix}csv_import_imported_items` (
+        // Create csv imported records table.
+        $db->query("CREATE TABLE IF NOT EXISTS `{$db->prefix}csv_import_imported_records` (
             `id` int(10) unsigned NOT NULL auto_increment,
-            `item_id` int(10) unsigned NOT NULL,
-            `source_item_id` varchar(255) collate utf8_unicode_ci,
             `import_id` int(10) unsigned NOT NULL,
+            `record_type` varchar(50) collate utf8_unicode_ci NOT NULL,
+            `record_id` int(10) unsigned NOT NULL,
+            `identifier` varchar(255) collate utf8_unicode_ci,
             PRIMARY KEY  (`id`),
-            KEY `source_item_id_import_id` (`source_item_id`, `import_id`),
-            KEY (`import_id`)
+            KEY (`import_id`),
+            KEY `record_type_record_id` (`record_type`, `record_id`),
+            KEY (`identifier`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
 
         $this->_installOptions();
@@ -102,10 +106,10 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
     {
         $db = $this->_db;
 
-        // drop the tables
+        // Drop the tables.
         $sql = "DROP TABLE IF EXISTS `{$db->prefix}csv_import_imports`";
         $db->query($sql);
-        $sql = "DROP TABLE IF EXISTS `{$db->prefix}csv_import_imported_items`";
+        $sql = "DROP TABLE IF EXISTS `{$db->prefix}csv_import_imported_records`";
         $db->query($sql);
 
         $this->_uninstallOptions();
@@ -126,12 +130,12 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
         }
 
         if (version_compare($oldVersion, '2.0', '<=')) {
-            set_option('csv_import_html_elements', $this->_options['csv_import_html_elements']);
-            set_option('csv_import_automap_columns', $this->_options['csv_import_automap_columns']);
             set_option(CsvImport_RowIterator::COLUMN_DELIMITER_OPTION_NAME, CsvImport_RowIterator::DEFAULT_COLUMN_DELIMITER);
             set_option(CsvImport_ColumnMap_Element::ELEMENT_DELIMITER_OPTION_NAME, CsvImport_ColumnMap_Element::DEFAULT_ELEMENT_DELIMITER);
             set_option(CsvImport_ColumnMap_Tag::TAG_DELIMITER_OPTION_NAME, CsvImport_ColumnMap_Tag::DEFAULT_TAG_DELIMITER);
             set_option(CsvImport_ColumnMap_File::FILE_DELIMITER_OPTION_NAME, CsvImport_ColumnMap_File::DEFAULT_FILE_DELIMITER);
+            set_option('csv_import_html_elements', $this->_options['csv_import_html_elements']);
+            set_option('csv_import_automap_columns', $this->_options['csv_import_automap_columns']);
         }
 
         if (version_compare($oldVersion, '2.0.1', '<=')) {
@@ -162,6 +166,82 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
                 DROP INDEX `item_id`,
                 ADD INDEX `source_item_id_import_id` (`source_item_id`, `import_id`)
             ";
+            $db->query($sql);
+        }
+
+        if (version_compare($oldVersion, '2.1.1-full', '<=')) {
+            // Move all default values into a specific field.
+            $sql = "
+                ALTER TABLE `{$db->prefix}csv_import_imports`
+                ADD `serialized_default_values` text collate utf8_unicode_ci NOT NULL AFTER `file_path`,
+                ADD `updated_record_count` int(10) unsigned NOT NULL AFTER `skipped_item_count`
+            ";
+            $db->query($sql);
+
+            // Keep previous default values.
+            $table = $db->getTable('CsvImport_Import');
+            $alias = $table->getTableAlias();
+            $select = $table->getSelect();
+            $select->reset(Zend_Db_Select::COLUMNS);
+            $select->from(array(), array(
+                $alias . '.id',
+                $alias . '.item_type_id',
+                $alias . '.collection_id',
+                $alias . '.is_public',
+                $alias . '.is_featured',
+            ));
+            $result = $table->fetchAll($select);
+            $sql = "
+                UPDATE `{$db->prefix}csv_import_imports`
+                SET `serialized_default_values` = ?
+                WHERE `id` = ?
+            ";
+            foreach ($result as $values) {
+                $bind = $values;
+                unset($bind['id']);
+                $db->query($sql, array(serialize($bind), $values['id']));
+            }
+
+            // Reorder columns and change name of "skipped_item_count" column.
+            $sql = "
+                ALTER TABLE `{$db->prefix}csv_import_imports`
+                DROP `item_type_id`,
+                DROP `collection_id`,
+                DROP `is_public`,
+                DROP `is_featured`,
+                CHANGE `format` `format` varchar(255) collate utf8_unicode_ci NOT NULL AFTER `id`,
+                CHANGE `delimiter` `delimiter` varchar(1) collate utf8_unicode_ci NOT NULL AFTER `format`,
+                CHANGE `enclosure` `enclosure` varchar(1) collate utf8_unicode_ci NOT NULL AFTER `delimiter`,
+                CHANGE `status` `status` varchar(255) collate utf8_unicode_ci AFTER `enclosure`,
+                CHANGE `row_count` `row_count` int(10) unsigned NOT NULL AFTER `status`,
+                CHANGE `skipped_row_count` `skipped_row_count` int(10) unsigned NOT NULL AFTER `row_count`,
+                CHANGE `skipped_item_count` `skipped_record_count` int(10) unsigned NOT NULL AFTER `skipped_row_count`,
+                CHANGE `updated_record_count` `updated_record_count` int(10) unsigned NOT NULL AFTER `skipped_record_count`,
+                CHANGE `file_position` `file_position` bigint unsigned NOT NULL AFTER `updated_record_count`,
+                CHANGE `original_filename` `original_filename` text collate utf8_unicode_ci NOT NULL AFTER `file_position`,
+                CHANGE `file_path` `file_path` text collate utf8_unicode_ci NOT NULL AFTER `original_filename`,
+                CHANGE `serialized_default_values` `serialized_default_values` text collate utf8_unicode_ci NOT NULL AFTER `file_path`,
+                CHANGE `serialized_column_maps` `serialized_column_maps` text collate utf8_unicode_ci NOT NULL AFTER `serialized_default_values`,
+                CHANGE `owner_id` `owner_id` int unsigned NOT NULL AFTER `serialized_column_maps`,
+                CHANGE `added` `added` timestamp NOT NULL default '0000-00-00 00:00:00' AFTER `owner_id`
+            ";
+            $db->query($sql);
+
+            $sql = "
+                ALTER TABLE `{$db->prefix}csv_import_imported_items`
+                ADD `record_type` varchar(50) collate utf8_unicode_ci NOT NULL DEFAULT ''  AFTER `id`,
+                CHANGE `import_id` `import_id` int(10) unsigned NOT NULL AFTER `id`,
+                CHANGE `item_id` `record_id` int(10) unsigned NOT NULL AFTER `record_type`,
+                CHANGE `source_item_id` `identifier` varchar(255) COLLATE 'utf8_unicode_ci' NOT NULL AFTER `record_id`,
+                DROP INDEX `source_item_id_import_id`,
+                ADD INDEX  `record_type_record_id` (`record_type`, `record_id`),
+                ADD INDEX  `identifier` (`identifier`),
+                RENAME TO `{$db->prefix}csv_import_imported_records`
+            ";
+            $db->query($sql);
+
+            // Fill all record identifiers as Item.
+            $sql = "UPDATE `{$db->prefix}csv_import_imported_records` SET `record_type` = 'Item'";
             $db->query($sql);
         }
     }

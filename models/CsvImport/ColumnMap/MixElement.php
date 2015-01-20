@@ -92,7 +92,7 @@ class CsvImport_ColumnMap_MixElement extends CsvImport_ColumnMap
                     $elementSetName = trim($columnNameParts[0]);
                     $elementName = trim($columnNameParts[1]);
                     $element = get_db()->getTable('Element')
-                                       ->findByElementSetNameAndElementName($elementSetName, $elementName);
+                        ->findByElementSetNameAndElementName($elementSetName, $elementName);
                 }
             }
         }

@@ -8,6 +8,8 @@
  */
 class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
 {
+    private $_collectionId;
+
     /**
      * @internal Due to the nature of Csv Import, designed to import items, the
      * creation of collections, if allowed, should be made here. The new
@@ -16,13 +18,24 @@ class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
     private $_createCollection;
 
     /**
-     * @param string $columnName
+     * Allow to use the direct mode: determine the id here directly via the id
+     * or the Dublin Core Title. Used by Csv Report, Mix and Update  formats.
      */
-    public function __construct($columnName, $createCollection = false)
+    private $_direct;
+
+    /**
+     * @param string $columnName
+     * @param integer $collectionId
+     * @param boolean $createCollection
+     * @param boolean $direct
+     */
+    public function __construct($columnName, $collectionId = null, $createCollection = false, $direct = false)
     {
         parent::__construct($columnName);
         $this->_type = CsvImport_ColumnMap::TYPE_COLLECTION;
+        $this->_collectionId = $collectionId;
         $this->_createCollection = (boolean) $createCollection;
+        $this->_direct = $direct;
     }
 
     /**
@@ -35,18 +48,65 @@ class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
      */
     public function map($row, $result)
     {
+        $collectionIdentifier = trim($row[$this->_columnName]);
+        // In "Manage" format, collection is determined at row level, according
+        // to field of the identifier, so only content of the cell is returned.
+        if (!$this->_direct) {
+            if (empty($collectionIdentifier) && !empty($this->_collectionId)) {
+                $collectionIdentifier = $this->_collectionId;
+            }
+            return $collectionIdentifier;
+        }
+
         $result = null;
-        $collectionTitle = $row[$this->_columnName];
-        if ($collectionTitle != '') {
-            $collection = $this->_getCollectionByTitle($collectionTitle);
+        if ($collectionIdentifier !== '') {
+            if (is_numeric($collectionIdentifier) && (integer) $collectionIdentifier > 0) {
+                $collection = get_record_by_id('Collection', $collectionIdentifier);
+            }
+            if (empty($collection)) {
+                $collection = $this->_getCollectionByTitle($collectionIdentifier);
+            }
             if (empty($collection) && $this->_createCollection) {
-                $collection = $this->_createCollectionFromTitle($collectionTitle);
+                $collection = $this->_createCollectionFromTitle($collectionIdentifier);
             }
             if ($collection) {
                 $result = $collection->id;
             }
         }
+        else {
+            $result = $this->_collectionId;
+        }
         return $result;
+    }
+
+    /**
+     * Return the collection id.
+     *
+     * @return string The collectionId
+     */
+    public function getCollectionId()
+    {
+        return $this->_collectionId;
+    }
+
+    /**
+     * Return the create collection.
+     *
+     * @return string The create collection
+     */
+    public function getCreateCollection()
+    {
+        return $this->_createCollection;
+    }
+
+    /**
+     * Return the direct.
+     *
+     * @return string The direct
+     */
+    public function getDirect()
+    {
+        return $this->_direct;
     }
 
     /**

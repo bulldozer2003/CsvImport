@@ -8,42 +8,41 @@
  */
 class CsvImport_Import extends Omeka_Record_AbstractRecord
 {
-    const UNDO_IMPORT_ITEM_LIMIT_PER_QUERY = 50;
+    const UNDO_IMPORT_RECORD_LIMIT_PER_QUERY = 50;
 
-    const QUEUED = 'queued';
-    const IN_PROGRESS = 'in_progress';
-    const COMPLETED = 'completed';
+    const STATUS_QUEUED = 'queued';
+    const STATUS_IN_PROGRESS = 'in_progress';
+    const STATUS_COMPLETED = 'completed';
 
-    const QUEUED_UNDO = 'queued_undo';
-    const IN_PROGRESS_UNDO = 'undo_in_progress';
-    const COMPLETED_UNDO = 'completed_undo';
+    const STATUS_QUEUED_UNDO = 'queued_undo';
+    const STATUS_IN_PROGRESS_UNDO = 'undo_in_progress';
+    const STATUS_COMPLETED_UNDO = 'completed_undo';
 
-    const IMPORT_ERROR = 'import_error';
-    const UNDO_IMPORT_ERROR = 'undo_import_error';
-    const OTHER_ERROR = 'other_error';
+    const STATUS_IMPORT_ERROR = 'import_error';
+    const STATUS_UNDO_IMPORT_ERROR = 'undo_import_error';
+    const STATUS_OTHER_ERROR = 'other_error';
 
-    const STOPPED = 'stopped';
-    const PAUSED = 'paused';
+    const STATUS_STOPPED = 'stopped';
+    const STATUS_PAUSED = 'paused';
+
+    public $format;
+    public $delimiter;
+    public $enclosure;
+
+    public $status;
+    public $row_count = 0;
+    public $skipped_row_count = 0;
+    public $skipped_record_count = 0;
+    public $updated_record_count = 0;
+    public $file_position = 0;
 
     public $original_filename;
     public $file_path;
-    public $file_position = 0;
+    public $serialized_default_values;
+    public $serialized_column_maps;
 
-    public $format;
-    public $item_type_id;
-    public $collection_id;
     public $owner_id;
     public $added;
-
-    public $delimiter;
-    public $enclosure;
-    public $is_public;
-    public $is_featured;
-    public $row_count = 0;
-    public $skipped_row_count = 0;
-    public $skipped_item_count = 0;
-    public $status;
-    public $serialized_column_maps;
 
     private $_csvFile;
     private $_isHtml;
@@ -55,6 +54,11 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     private $_batchSize = 0;
 
     /**
+     * Default values for item type, collection, public, featured...
+     */
+    private $_defaultValues;
+
+    /**
      * An array of columnMaps, where each columnMap maps a column index number
      * (starting at 0) to an element, tag, and/or file.
      *
@@ -62,39 +66,14 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     private $_columnMaps;
 
+    /**
+     * The mapping of the current row from a CSV file (CsvImport_ColumnMap_Set).
+     */
+     private $_currentMap;
+
     protected function _initializeMixins()
     {
         $this->_mixins[] = new Mixin_Timestamp($this, 'added', null);
-    }
-
-    /**
-     * Sets the status of the import.
-     *
-     * @param string The status of the import
-     */
-    public function setStatus($status)
-    {
-        $this->status = (string)$status;
-    }
-
-    /**
-     * Sets the file path of the imported CSV file.
-     *
-     * @param string The file path of the imported CSV file
-     */
-    public function setFilePath($path)
-    {
-        $this->file_path = $path;
-    }
-
-    /**
-     * Sets the original filename of the imported CSV file.
-     *
-     * @param string The original filename of the imported CSV file
-     */
-    public function setOriginalFilename($filename)
-    {
-        $this->original_filename = $filename;
     }
 
     /**
@@ -105,57 +84,6 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     public function setFormat($format)
     {
         $this->format = $format;
-    }
-
-    /**
-     * Sets the item type id of the item type of every imported item.
-     *
-     * @param int $id The item type id
-     */
-    public function setItemTypeId($id)
-    {
-        if (!$id) {
-            $this->item_type_id = null;
-        } else {
-            $this->item_type_id = (int)$id;
-        }
-    }
-
-    /**
-     * Sets the collection id of the collection to which the imported items
-     * belong.
-     *
-     * @param int $id The collection id
-     */
-    public function setCollectionId($id)
-    {
-        if (!$id) {
-            $this->collection_id = null;
-        } else {
-            $this->collection_id = (int)$id;
-        }
-    }
-
-    /**
-     * Sets whether the imported items are public.
-     *
-     * @param mixed $flag A boolean representation
-     */
-    public function setItemsArePublic($flag)
-    {
-        $booleanFilter = new Omeka_Filter_Boolean;
-        $this->is_public = $booleanFilter->filter($flag);
-    }
-
-    /**
-     * Sets whether the imported items are featured.
-     *
-     * @param mixed $flag A boolean representation
-     */
-    public function setItemsAreFeatured($flag)
-    {
-        $booleanFilter = new Omeka_Filter_Boolean;
-        $this->is_featured = $booleanFilter->filter($flag);
     }
 
     /**
@@ -179,23 +107,61 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     }
 
     /**
-     * Sets the user id of the owner of the imported items.
-     *
-     * @param int $id The user id of the owner of the imported items
-     */
-    public function setOwnerId($id)
-    {
-        $this->owner_id = (int)$id;
-    }
-
-    /**
      * Sets whether the import is raw text or html.
      *
      * @param mixed $flag A boolean representation
      */
     public function setIsHtml($flag)
     {
-        $this->_isHtml = $flag;
+        $booleanFilter = new Omeka_Filter_Boolean;
+        $this->_isHtml = $booleanFilter->filter($flag);
+    }
+
+    /**
+     * Sets the status of the import.
+     *
+     * @param string The status of the import
+     */
+    public function setStatus($status)
+    {
+        $this->status = (string)$status;
+    }
+
+    /**
+     * Sets the original filename of the imported CSV file.
+     *
+     * @param string The original filename of the imported CSV file
+     */
+    public function setOriginalFilename($filename)
+    {
+        $this->original_filename = $filename;
+    }
+
+    /**
+     * Sets the file path of the imported CSV file.
+     *
+     * @param string The file path of the imported CSV file
+     */
+    public function setFilePath($path)
+    {
+        $this->file_path = $path;
+    }
+
+    /**
+     * Sets default values.
+     *
+     * @param array $defaultValues
+     */
+    public function setDefaultValues($defaultValues)
+    {
+        // Check null.
+        if (empty($defaultValues)) {
+            $defaultValues = array();
+        }
+        elseif (!is_array($defaultValues)) {
+            throw new InvalidArgumentException("Default values must be an array.");
+        }
+        $this->_defaultValues = $defaultValues;
     }
 
     /**
@@ -218,6 +184,16 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     }
 
     /**
+     * Sets the user id of the owner of the imported items.
+     *
+     * @param int $id The user id of the owner of the imported items
+     */
+    public function setOwnerId($id)
+    {
+        $this->owner_id = (int) $id;
+    }
+
+    /**
      * Set the number of items to create before pausing the import.
      *
      * Used primarily for performance reasons, i.e. long-running imports may
@@ -230,7 +206,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     public function setBatchSize($size)
     {
-        $this->_batchSize = (int)$size;
+        $this->_batchSize = (int) $size;
     }
 
     /**
@@ -240,6 +216,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     protected function beforeSave($args)
     {
+        $this->serialized_default_values = serialize($this->getDefaultValues());
         $this->serialized_column_maps = serialize($this->getColumnMaps());
     }
 
@@ -272,7 +249,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     public function isImportError()
     {
-        return $this->status == self::IMPORT_ERROR;
+        return $this->status == self::STATUS_IMPORT_ERROR;
     }
 
     /**
@@ -282,7 +259,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     public function isUndoImportError()
     {
-        return $this->status == self::UNDO_IMPORT_ERROR;
+        return $this->status == self::STATUS_UNDO_IMPORT_ERROR;
     }
 
     /**
@@ -294,7 +271,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     public function isOtherError()
     {
-        return $this->status == self::OTHER_ERROR;
+        return $this->status == self::STATUS_OTHER_ERROR;
     }
 
     /**
@@ -304,7 +281,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     public function isStopped()
     {
-        return $this->status == self::STOPPED;
+        return $this->status == self::STATUS_STOPPED;
     }
 
     /**
@@ -314,7 +291,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     public function isQueued()
     {
-        return $this->status == self::QUEUED;
+        return $this->status == self::STATUS_QUEUED;
     }
 
     /**
@@ -324,7 +301,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     public function isQueuedUndo()
     {
-        return $this->status == self::QUEUED_UNDO;
+        return $this->status == self::STATUS_QUEUED_UNDO;
     }
 
     /**
@@ -334,7 +311,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     public function isCompleted()
     {
-        return $this->status == self::COMPLETED;
+        return $this->status == self::STATUS_COMPLETED;
     }
 
     /**
@@ -344,20 +321,20 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     public function isUndone()
     {
-        return $this->status == self::COMPLETED_UNDO;
+        return $this->status == self::STATUS_COMPLETED_UNDO;
     }
 
     /**
      * Imports the CSV file.  This function can only be run once.
      * To import the same csv file, you will have to create another instance of
      * CsvImport_Import and run start.
-     * Sets import status to self::IN_PROGRESS.
+     * Sets import status to self::STATUS_IN_PROGRESS.
      *
      * @return boolean Whether the import was successful
      */
     public function start()
     {
-        $this->status = self::IN_PROGRESS;
+        $this->status = self::STATUS_IN_PROGRESS;
         $this->_countRows();
         $this->save();
         $this->_log("Started import.");
@@ -367,7 +344,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
     /**
      * Completes the import.
-     * Sets import status to self::COMPLETED
+     * Sets import status to self::STATUS_COMPLETED
      *
      * @return boolean Whether the import was successfully completed
      */
@@ -377,16 +354,17 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             $this->_log("Cannot complete an import that is already completed.");
             return false;
         }
-        $this->status = self::COMPLETED;
+        $this->status = self::STATUS_COMPLETED;
         $this->save();
-        $this->_log("Completed importing $this->_importedCount items (skipped "
-            . "$this->skipped_row_count rows).");
+        $this->_log("Completed importing $this->_importedCount items ("
+            . "updated $this->updated_record_count rows, "
+            . "skipped $this->skipped_row_count rows).");
         return true;
     }
 
     /**
      * Completes the undo import.
-     * Sets import status to self::COMPLETED_UNDO
+     * Sets import status to self::STATUS_COMPLETED_UNDO
      *
      * @return boolean Whether the undo import was successfully completed
      */
@@ -396,7 +374,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             $this->_log("Cannot complete an undo import that is already undone.");
             return false;
         }
-        $this->status = self::COMPLETED_UNDO;
+        $this->status = self::STATUS_COMPLETED_UNDO;
         $this->save();
         $this->_log("Completed undoing the import.");
         return true;
@@ -404,7 +382,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
     /**
      * Resumes the import.
-     * Sets import status to self::IN_PROGRESS
+     * Sets import status to self::STATUS_IN_PROGRESS
      *
      * @return boolean Whether the import was successful after it was resumed
      */
@@ -418,12 +396,12 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         $undoImport = $this->isQueuedUndo();
 
         if ($this->isQueued()) {
-            $this->status = self::IN_PROGRESS;
+            $this->status = self::STATUS_IN_PROGRESS;
             $this->save();
             $this->_log("Resumed import.");
             $this->_importLoop($this->file_position);
         } else {
-            $this->status = self::IN_PROGRESS_UNDO;
+            $this->status = self::STATUS_IN_PROGRESS_UNDO;
             $this->save();
             $this->_log("Resumed undo import.");
             $this->_undoImportLoop();
@@ -434,7 +412,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
     /**
      * Stops the import or undo import.
-     * Sets import status to self::STOPPED
+     * Sets import status to self::STATUS_STOPPED
      *
      * @return boolean Whether the import or undo import was stopped due to an error
      */
@@ -443,8 +421,8 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         // If the import or undo import loops were prematurely stopped while in
         // progress, then there is an error, otherwise there is no error, i.e.
         // the import or undo import was completed
-        if ($this->status != self::IN_PROGRESS and
-            $this->status != self::IN_PROGRESS_UNDO) {
+        if ($this->status != self::STATUS_IN_PROGRESS and
+            $this->status != self::STATUS_IN_PROGRESS_UNDO) {
             return false; // no error
         }
 
@@ -455,7 +433,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         } else {
             $logMsg .= '.';
         }
-        $this->status = self::STOPPED;
+        $this->status = self::STATUS_STOPPED;
         $this->save();
         $this->_log($logMsg, Zend_Log::ERR);
         return true; // stopped with an error
@@ -463,7 +441,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
     /**
      * Queue the import.
-     * Sets import status to self::QUEUED
+     * Sets import status to self::STATUS_QUEUED
      *
      * @return boolean Whether the import was successfully queued
      */
@@ -489,7 +467,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             return false;
         }
 
-        $this->status = self::QUEUED;
+        $this->status = self::STATUS_QUEUED;
         $this->save();
         $this->_log("Queued import.");
         return true;
@@ -497,7 +475,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
     /**
      * Queue the undo import.
-     * Sets import status to self::QUEUED_UNDO
+     * Sets import status to self::STATUS_QUEUED_UNDO
      *
      * @return boolean Whether the undo import was successfully queued
      */
@@ -523,7 +501,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             return false;
         }
 
-        $this->status = self::QUEUED_UNDO;
+        $this->status = self::STATUS_QUEUED_UNDO;
         $this->save();
         $this->_log("Queued undo import.");
         return true;
@@ -531,13 +509,13 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
     /**
      * Undo the import.
-     * Sets import status to self::IN_PROGRESS_UNDO and then self::COMPLETED_UNDO
+     * Sets import status to self::STATUS_IN_PROGRESS_UNDO and then self::STATUS_COMPLETED_UNDO
      *
      * @return boolean Whether the import was successfully undone
      */
     public function undo()
     {
-        $this->status = self::IN_PROGRESS_UNDO;
+        $this->status = self::STATUS_IN_PROGRESS_UNDO;
         $this->save();
         $this->_log("Started undo import.");
         $this->_undoImportLoop();
@@ -555,6 +533,28 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             $this->_csvFile = new CsvImport_File($this->file_path, $this->delimiter, $this->enclosure);
         }
         return $this->_csvFile;
+    }
+
+    /**
+     * Returns the the default values for the import.
+     *
+     * @throws UnexpectedValueException
+     * @return array The default values for the import
+     */
+    public function getDefaultValues()
+    {
+        if ($this->_defaultValues === null) {
+            $defaultValues = unserialize($this->serialized_default_values);
+            if (empty($defaultValues)) {
+                $defaultValues = array();
+            }
+            elseif (!is_array($defaultValues)) {
+                throw new UnexpectedValueException("Default values must be an array. "
+                    . "Instead, the following was given: " . var_export($defaultValues, true));
+            }
+            $this->_defaultValues = $defaultValues;
+        }
+        return $this->_defaultValues;
     }
 
     /**
@@ -578,17 +578,15 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     }
 
     /**
-     * Returns the number of items currently imported.  If a user undoes an
-     * import, this number decreases to the number of items left to remove.
+     * Returns the number of records currently imported.  If a user undoes an
+     * import, this number decreases to the number of records left to remove.
      *
-     * @return int The number of items imported minus the number of items undone
+     * @return int The number of records imported minus the number of records
+     * undone.
      */
-    public function getImportedItemCount()
+    public function getImportedRecordCount()
     {
-        $iit = $this->getTable('CsvImport_ImportedItem');
-        $sql = $iit->getSelectForCount()->where('`import_id` = ?');
-        $importedItemCount = $this->getDb()->fetchOne($sql, array($this->id));
-        return $importedItemCount;
+        return $this->getTable('CsvImport_ImportedRecord')->getTotal($this->id);
     }
 
     /**
@@ -634,39 +632,53 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
                 $index = $rows->key();
                 $this->skipped_row_count += $rows->getSkippedCount();
 
+                // TODO Mapping row process may be used to clean and normalize
+                // data, so the process here (and in all the plugin) may be
+                // simpler.
+
+                // Map the row to identified columns.
+                $this->_currentMap = $this->getColumnMaps()->map($row);
+                $map = &$this->_currentMap;
+
+                // Process returns the record if any, true if success but no
+                // record (delete), false in case of error and null in other
+                // cases (true skip).
                 switch ($this->format) {
+                    case 'Manage':
+                        $record = $this->_manageFromMappedRow();
+                        break;
                     case 'Report':
                     case 'Item':
-                        $record = $this->_addItemFromRow($row);
+                        $record = $this->_addItemFromMappedRow();
                         break;
+                    // Deprecated.
                     case 'File':
-                        $record = $this->_updateFileFromRow($row);
+                        $record = $this->_updateFileFromMappedRow();
                         break;
                     case 'Mix':
-                        $result = $this->getColumnMaps()->map($row);
-                        $record = (isset($result[CsvImport_ColumnMap::TYPE_FILE_URL])
-                                && !empty($result[CsvImport_ColumnMap::TYPE_FILE_URL]))
-                            ? $this->_addFileFromRow($row)
-                            : $this->_addItemFromRow($row);
+                        $record = $this->_mixFromMappedRow();
                         break;
                     case 'Update':
-                        $record = $this->_updateFromRow($row);
+                        $record = $this->_updateFromMappedRow();
                         break;
                     default:
-                        $record = null;
+                        $record = false;
                 }
 
                 if (empty($record)) {
-                    $this->skipped_item_count++;
-                    $this->_log("Skipped item on row #{$index}.", Zend_Log::WARN);
+                    $this->skipped_record_count++;
+                    $this->_log("Skipped record on row #{$index}.", Zend_Log::WARN);
                 }
-                else {
+                elseif ($record === CsvImport_ColumnMap_Action::ACTION_SKIP) {
+                    $this->skipped_record_count++;
+                }
+                elseif (is_object($record)) {
                     release_object($record);
                 }
 
                 $this->file_position = $this->getCsvFile()->getIterator()->tell();
                 if ($this->_batchSize && ($index % $this->_batchSize == 0)) {
-                    $this->_log("Completed importing batch of $this->_batchSize items at %time%.");
+                    $this->_log("Completed processing batch of $this->_batchSize items at %time%.");
                     $this->_log("Memory usage: %memory%.");
                     return $this->queue();
                 }
@@ -679,7 +691,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             // the last stopping position.
             return $this->queue();
         } catch (Exception $e) {
-            $this->status = self::IMPORT_ERROR;
+            $this->status = self::STATUS_IMPORT_ERROR;
             $this->save();
             $this->_log($e, Zend_Log::ERR);
             throw $e;
@@ -695,48 +707,67 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     protected function _undoImportLoop()
     {
         try {
-            $itemLimitPerQuery = self::UNDO_IMPORT_ITEM_LIMIT_PER_QUERY;
+            $recordLimitPerQuery = self::UNDO_IMPORT_RECORD_LIMIT_PER_QUERY;
             $batchSize = intval($this->_batchSize);
             if ($batchSize > 0) {
-                $itemLimitPerQuery = min($itemLimitPerQuery, $batchSize);
+                $recordLimitPerQuery = min($recordLimitPerQuery, $batchSize);
             }
             register_shutdown_function(array($this, 'stop'));
             $db = $this->getDb();
-            $searchSql = "SELECT `item_id` FROM $db->CsvImport_ImportedItem"
-                       . " WHERE `import_id` = " . (int)$this->id
-                       . " LIMIT " . $itemLimitPerQuery;
-            $it = $this->getTable('Item');
-            $deletedItemCount = 0;
-            while ($itemIds = $db->fetchCol($searchSql)) {
-                $inClause = 'IN (' . join(', ', $itemIds) . ')';
-                $items = $it->fetchObjects($it->getSelect()
-                                              ->where("`items`.`id` $inClause"));
-                $deletedItemIds = array();
-                foreach ($items as $item) {
-                    $itemId = $item->id;
-                    $item->delete();
-                    release_object($item);
-                    $deletedItemIds[] = $itemId;
-                    $deletedItemCount++;
-                    if ($batchSize > 0 && $deletedItemCount == $batchSize) {
-                        $inClause = 'IN (' . join(', ', $deletedItemIds) . ')';
-                        $db->delete($db->CsvImport_ImportedItem, "`item_id` $inClause");
+            $deletedRecordsCount = 0;
+
+            while ($importedRecords = get_records('CsvImport_ImportedRecord', array('import_id' => $this->id), $recordLimitPerQuery)) {
+                $deletedRecords = array();
+                foreach ($importedRecords as $importedRecord) {
+                    $record = $importedRecord->getRecord();
+                    // The record may have been deleted automatically, specially
+                    // if it's a file.
+                    if ($record) {
+                        $record->delete();
+                        release_object($record);
+                    }
+                    // Even if the record have been deleted automatically, it's
+                    // counted.
+                    $deletedRecords[$importedRecord->record_type][] = $importedRecord->record_id;
+                    $deletedRecordsCount++;
+                    // Limit process to the batch size of the job, and prepare a
+                    // new job.
+                    if ($batchSize > 0 && $deletedRecordsCount >= $batchSize) {
+                        // Remove all deleted records from the list of imported
+                        // records.
+                        foreach ($deletedRecords as $recordType => $recordIds) {
+                            $db->delete($db->CsvImport_ImportedRecord, array(
+                                'record_type = ' . $db->quote($recordType),
+                                'record_id IN (' . $db->quote($recordIds) . ')',
+                            ));
+                        }
                         $this->_log("Completed undoing the import of a batch of $batchSize items.");
                         $this->_log("Memory usage: %memory%.");
                         return $this->queueUndo();
                     }
                 }
-                $db->delete($db->CsvImport_ImportedItem, "`item_id` $inClause");
+                // Remove all deleted records from the list of imported records.
+                foreach ($deletedRecords as $recordType => $recordIds) {
+                    $db->delete($db->CsvImport_ImportedRecord, array(
+                        'record_type = ' . $db->quote($recordType),
+                        'record_id IN (' . $db->quote($recordIds) . ')',
+                    ));
+                }
             }
             return $this->completeUndo();
         } catch (Omeka_Job_Worker_InterruptException $e) {
-            if ($db && $deletedItemIds) {
-                $inClause = 'IN (' . join(', ', $deletedItemIds) . ')';
-                $db->delete($db->CsvImport_ImportedItem, "`item_id` $inClause");
+            if ($db && $deletedRecords) {
+                // Remove all deleted records from the list of imported records.
+                foreach ($deletedRecords as $recordType => $recordIds) {
+                    $db->delete($db->CsvImport_ImportedRecord, array(
+                        'record_type = ' . $db->quote($recordType),
+                        'record_id IN (' . $db->quote($recordIds) . ')',
+                    ));
+                }
             }
             return $this->queueUndo();
         } catch (Exception $e) {
-            $this->status = self::UNDO_IMPORT_ERROR;
+            $this->status = self::STATUS_UNDO_IMPORT_ERROR;
             $this->save();
             $this->_log($e, Zend_Log::ERR);
             throw $e;
@@ -744,55 +775,215 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     }
 
     /**
-     * Adds a new item based on a row string in the CSV file and returns it.
+     * Manage a record from a row string in the CSV file and returns it.
      *
-     * @param string $row A row string in the CSV file
+     * @return Record|boolean|string The managed record, true if deleted, or false if
+     * error.
+     */
+    protected function _manageFromMappedRow()
+    {
+        $action = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_ACTION);
+        // Avoid a empty choice by the user.
+        if (empty($action)) {
+            $action = CsvImport_ColumnMap_Action::DEFAULT_ACTION;
+        }
+        elseif ($action == CsvImport_ColumnMap_Action::ACTION_SKIP) {
+            return CsvImport_ColumnMap_Action::ACTION_SKIP;
+        }
+
+        $identifierField = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_IDENTIFIER_FIELD);
+
+        // Smart determination of the record type when empty
+        $recordType = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_RECORD_TYPE, null);
+        if (empty($recordType)) {
+            // If there is a non empty column Collection, so this is an item.
+            if (!empty($map[CsvImport_ColumnMap::TYPE_COLLECTION])) {
+                $recordType = 'Item';
+            }
+            // If there is a non empty Item Type, this is an item.
+            elseif (!empty($map[CsvImport_ColumnMap::TYPE_ITEM_TYPE])) {
+                $recordType = 'Item';
+            }
+            // If there are multiple files, this is an item.
+            elseif (count($map[CsvImport_ColumnMap::TYPE_FILE]) > 1) {
+                $recordType = 'Item';
+            }
+            // If there is a non empty column Item, this is a file.
+            elseif (!empty($map[CsvImport_ColumnMap::TYPE_ITEM])) {
+                $recordType = 'File';
+            }
+            // Specific file identifiers.
+            elseif (in_array(strtolower($identifierField), array(
+                    'original filename',
+                    'filename',
+                    'md5',
+                    'authentication',
+                    // Deprecated.
+                    'original_filename',
+                ))) {
+                $recordType = 'File';
+            }
+            // If there are item type metadata, this is an item.
+            // By default, this is an item.
+            else {
+                $recordType = CsvImport_ColumnMap_RecordType::DEFAULT_RECORD_TYPE;
+            }
+        }
+
+        // Get the identifier (specific column or metadata).
+        $identifier = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_IDENTIFIER);
+        // If there is no column, get the value of the identifier field column.
+        // Note: Empty string ("") is managed below.
+        if (is_null($identifier)) {
+            if (!empty($identifierField)) {
+                // TODO This is a bug: here, the column is an element or an
+                // extra data, so we should check one of these columns, not the
+                // Identifier Field column directly.
+                // Nevertheless, this line is never used because there is always
+                // an identifer column. Currently, it returns empty for element
+                // field, so it doesn't change anything.
+                $identifier = $this->_getMappedValue($identifierField);
+            }
+        }
+
+        $record = $this->_getRecordByIdentifier($identifier, $recordType, $identifierField);
+
+        // In case there is no identifier or record, the only available action
+        // is Create. Else all actions are available.
+        if (empty($identifier) || empty($record)) {
+            if (!in_array($action, array(
+                    CsvImport_ColumnMap_Action::ACTION_UPDATE_ELSE_CREATE,
+                    CsvImport_ColumnMap_Action::ACTION_CREATE,
+                ))) {
+                $msg = __('Cannot process this row: no record found with the identifier "%s".', $identifier);
+                $this->_log($msg, Zend_Log::WARN);
+                return false;
+            }
+            $record = null;
+            $action = CsvImport_ColumnMap_Action::ACTION_CREATE;
+        }
+
+        // Check if a duplicate is to be created.
+        if ($record && $action == CsvImport_ColumnMap_Action::ACTION_CREATE) {
+            // A same identifier is possible only for different record (internal id).
+            if ($identifierField != 'internal id' || get_class($record) == $recordType) {
+                $msg = __('Cannot create a second record with the same identifier "%s".', $identifier);
+                $this->_log($msg, Zend_Log::WARN);
+                return false;
+            }
+        }
+
+        // In the case where recordType was a special one.
+        if ($record) {
+            $recordType = get_class($record);
+        }
+
+        switch ($action) {
+            case CsvImport_ColumnMap_Action::ACTION_CREATE:
+                switch ($recordType) {
+                    case 'Item':
+                        $record = $this->_addItemFromMappedRow();
+                        break;
+                    case 'File':
+                        $record = $this->_addFileFromMappedRow();
+                        break;
+                    case 'Collection':
+                        $record = $this->_addCollectionFromMappedRow();
+                        break;
+                    case 'Any':
+                    default:
+                        $msg = __('Type of the record to create is not set.');
+                        $this->_log($msg, Zend_Log::WARN);
+                        return false;
+                }
+                break;
+
+            case CsvImport_ColumnMap_Action::ACTION_UPDATE_ELSE_CREATE:
+                // As the record is present, "Update else Create" is "Update".
+                $action = CsvImport_ColumnMap_Action::ACTION_UPDATE;
+            case CsvImport_ColumnMap_Action::ACTION_UPDATE:
+            case CsvImport_ColumnMap_Action::ACTION_ADD:
+            case CsvImport_ColumnMap_Action::ACTION_REPLACE:
+                // Allowed actions here are only the old ones.
+                $record = $this->_updateRecord($record, $action);
+                // Can't move this _updateRecord().
+                $this->updated_record_count++;
+                break;
+            case CsvImport_ColumnMap_Action::ACTION_DELETE:
+                $record = $this->_deleteRecord($record);
+                break;
+            default:
+                return false;
+        }
+
+        return $record;
+    }
+
+    /**
+     * Manage a record from a row string in the CSV file and returns it.
+     *
+     * @return Record|boolean The managed record, or false if error.
+     */
+    protected function _mixFromMappedRow()
+    {
+        $map = &$this->_currentMap;
+
+        // Check if this is metadata of an item or a file.
+        $recordType = $map[CsvImport_ColumnMap::TYPE_RECORD_TYPE];
+        if ($recordType === false) {
+            return false;
+        }
+
+        $file = $map[CsvImport_ColumnMap::TYPE_FILE];
+
+        // Direct determination.
+        if ($recordType == 'Item') {
+            $record = $this->_addItemFromMappedRow();
+        }
+        elseif ($recordType == 'File') {
+            $record = $this->_addFileFromMappedRow();
+        }
+        elseif ($recordType == 'Collection') {
+            $record = $this->_addCollectionFromMappedRow();
+        }
+        // If there is no file, this can't be a file.
+        elseif (empty($file)) {
+            $record = $this->_addItemFromMappedRow();
+        }
+        // Check if there is one and only one file, as a string (see mapping).
+        elseif (!is_array($file)) {
+            $record = $this->_addFileFromMappedRow();
+        }
+        // Else, this is an item, even if the file column has only one url.
+        else {
+            $record = $this->_addItemFromMappedRow();
+        }
+        return $record;
+    }
+
+    /**
+     * Add a new item based on a row string in the CSV file and return it.
+     *
      * @return Item|boolean The inserted item or false if an item could not be
      * added.
      */
-    protected function _addItemFromRow($row)
+    protected function _addItemFromMappedRow()
     {
-        $result = $this->getColumnMaps()->map($row);
+        $map = &$this->_currentMap;
 
-        $sourceItemId = isset($result[CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID])
-            ? $result[CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID]
-            : '';
+        $recordMetadata = $this->_getItemMetadataFromMappedRow();
 
-        $tags = $result[CsvImport_ColumnMap::TYPE_TAG];
-        $itemMetadata = array(
-            Builder_Item::ITEM_TYPE_ID => $this->item_type_id,
-            Builder_Item::COLLECTION_ID => $this->collection_id,
-            Builder_Item::IS_PUBLIC => $this->is_public,
-            Builder_Item::IS_FEATURED => $this->is_featured,
-            Builder_Item::TAGS => $tags,
-        );
-
-        // If this is coming from CSV Report or from mixed records, bring in the
-        // item metadata coming from the file.
-        if (!empty($result[CsvImport_ColumnMap::TYPE_ITEM_TYPE])) {
-            $itemMetadata[Builder_Item::ITEM_TYPE_NAME] = $result[CsvImport_ColumnMap::TYPE_ITEM_TYPE];
-        }
-        if (!is_null($result[CsvImport_ColumnMap::TYPE_COLLECTION])) {
-            $itemMetadata[Builder_Item::COLLECTION_ID] = $result[CsvImport_ColumnMap::TYPE_COLLECTION];
-        }
-        if (!is_null($result[CsvImport_ColumnMap::TYPE_PUBLIC])) {
-            $itemMetadata[Builder_Item::IS_PUBLIC] = $result[CsvImport_ColumnMap::TYPE_PUBLIC];
-        }
-        if (!is_null($result[CsvImport_ColumnMap::TYPE_FEATURED])) {
-            $itemMetadata[Builder_Item::IS_FEATURED] = $result[CsvImport_ColumnMap::TYPE_FEATURED];
-        }
-
-        $elementTexts = $result[CsvImport_ColumnMap::TYPE_ELEMENT];
+        $elementTexts = $map[CsvImport_ColumnMap::TYPE_ELEMENT];
         // Keep only non empty fields to avoid removing them (allow update).
         $elementTexts = array_values(array_filter($elementTexts, 'self::_removeEmptyElement'));
         // Trim metadata to avoid spaces.
         $elementTexts = $this->_trimElementTexts($elementTexts);
 
-        $extraData = $result[CsvImport_ColumnMap::TYPE_EXTRA_DATA];
+        $extraData = $map[CsvImport_ColumnMap::TYPE_EXTRA_DATA];
         // Empty fields should not be removed. Fields are not trimmed.
 
         try {
-            $item = $this->_insert_item($itemMetadata, $elementTexts, array(), $extraData);
+            $item = $this->_insert_item($recordMetadata, $elementTexts, array(), $extraData);
         } catch (Omeka_Validator_Exception $e) {
             $this->_log($e, Zend_Log::ERR);
             return false;
@@ -801,18 +992,440 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             return false;
         }
 
-        $fileUrls = $result[CsvImport_ColumnMap::TYPE_FILE];
+        $fileUrls = $map[CsvImport_ColumnMap::TYPE_FILE];
+        // Check error.
         if (!$this->_attachFilesToItem($item, $fileUrls)) {
             return false;
         }
 
-        // Makes it easy to unimport the item later.
-        $this->_recordImportedItemId($item->id, $sourceItemId);
+        // This identifier will be saved in base. This is used only with format
+        // "Mix", so it is deprecated.
+        switch ($this->format) {
+            case 'Manage':
+                $identifier = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_IDENTIFIER);
+                break;
+            case 'Mix':
+                $identifier = isset($map[CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID])
+                    ? $map[CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID]
+                    : '';
+                break;
+            default:
+                $identifier = '';
+        }
+        // Makes it easy to unimport the record later.
+        $this->_recordImportedRecord('Item', $item->id, $identifier);
         return $item;
     }
 
     /**
-     * Attachs a list of  files to an item.
+     * Add a new file and add metadata based on a row string in the CSV file and
+     * return it.
+     *
+     * @return File|boolean The inserted file or false if the file could not be
+     * added.
+     */
+    protected function _addFileFromMappedRow()
+    {
+        $map = &$this->_currentMap;
+
+        // Looking for the item id.
+        if ($this->format == 'Manage') {
+            // Check if the file url is present.
+            $fileUrl = $map[CsvImport_ColumnMap::TYPE_FILE];
+            if (empty($fileUrl)) {
+                $msg = __('You should give the path or the url of the file to import.');
+                $this->_log($msg, Zend_Log::ERR);
+                return false;
+            }
+            elseif (count($fileUrl) > 1) {
+                $msg = __('A file can have only one url or path.');
+                $this->_log($msg, Zend_Log::ERR);
+                return false;
+            }
+            $fileUrl = reset($fileUrl);
+
+            $itemIdentifier = $map[CsvImport_ColumnMap::TYPE_ITEM];
+            $item = $this->_getRecordByIdentifier($itemIdentifier, 'Item', $this->_defaultValues['IdentifierField']);
+            // Create item if it doesn't exist.
+            if (empty($item)) {
+                if (!empty($itemIdentifier)) {
+                    $item = $this->_createRecordFromIdentifier($identifier, 'Item', $this->_defaultValues['IdentifierField']);
+                }
+                if (empty($item)) {
+                    $msg = __('No item with the identifier "%s" for the file "%s".', $itemIdentifier, $fileUrl);
+                    $this->_log($msg, Zend_Log::ERR);
+                    return false;
+                }
+            }
+        }
+        // Deprecated.
+        else {
+            // Check if the file url is present.
+            $fileUrl = $map[CsvImport_ColumnMap::TYPE_FILE];
+            if (empty($fileUrl)) {
+                $msg = __('You should give the path or the url of the file to import.');
+                $this->_log($msg, Zend_Log::ERR);
+                return false;
+            }
+            elseif (is_array($fileUrl)) {
+                if (count($fileUrl) > 1) {
+                    $msg = __('A file can have only one url or path.');
+                    $this->_log($msg, Zend_Log::ERR);
+                    return false;
+                }
+                $fileUrl = reset($fileUrl);
+            }
+
+            // Check if the source item id is present.
+            if (empty($map[CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID])) {
+                $msg = __('No indication of the source item to which attach filename.', $fileUrl);
+                $this->_log($msg, Zend_Log::ERR);
+                return false;
+            }
+
+            $sourceItemId = $map[CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID];
+            $csvImportedRecords = get_db()->getTable('CsvImport_ImportedRecord')
+                ->findBy(array(
+                    'identifier' => $sourceItemId,
+                    'record_type' => 'Item',
+                    'import_id' => $this->id,
+                ), 1);
+            if (empty($csvImportedRecords)) {
+                $msg = __('No item with the source item id "%s" does exist in the database.', $sourceItemId)
+                    . ' ' . __('With depracted "Mix" and "Update" formats, file rows should always be imported after the item to which they are attached.');
+                $this->_log($msg, Zend_Log::ERR);
+                return false;
+            }
+            $csvImportedRecord = reset($csvImportedRecords);
+            $item = get_record_by_id('Item', $csvImportedRecord->record_id);
+        }
+
+        // Set the transfer strategy according to file name.
+        $parsedFileUrl = parse_url($fileUrl);
+        if (!isset($parsedFileUrl['scheme']) || $parsedFileUrl['scheme'] == 'file') {
+            $transferStrategy = 'Filesystem';
+            $fileUrl = $parsedFileUrl['path'];
+        }
+        else {
+            $transferStrategy = 'Url';
+        }
+
+        // Import the file and attach it to the item.
+        try {
+            $files = insert_files_for_item($item,
+                $transferStrategy,
+                $fileUrl,
+                array('ignore_invalid_files' => false));
+        } catch (Omeka_File_Ingest_InvalidException $e) {
+            $msg = __("Error occurred when attempting to ingest '%s' as a file: %s",
+                $fileUrl, $e->getMessage());
+            $this->_log($msg, Zend_Log::ERR);
+            return false;
+        }
+        // Need to release file in order to update all current data, because
+        // $file->save() is not enough.
+        $file_id = $files[0]->id;
+        release_object($files);
+        $file = get_record_by_id('File', $file_id);
+
+        // Update file with new metadata.
+        $this->_updateRecord($file, CsvImport_ColumnMap_Action::ACTION_ADD);
+
+        // This identifier will be saved in base. This is used only with format
+        // "Mix", so it is deprecated.
+        switch ($this->format) {
+            case 'Manage':
+                $identifier = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_IDENTIFIER);
+                break;
+            default:
+                $identifier = '';
+        }
+        // Makes it easy to unimport the record later.
+        $this->_recordImportedRecord('File', $file->id, $identifier);
+        return $file;
+    }
+
+    /**
+     * Add a new collection based on a row string in the CSV file and return it.
+     *
+     * The used method is setArray() with elements and extra data, available for
+     * all Omeka Records.
+     *
+     * @return Record|boolean The inserted record or false if it can't be added.
+     */
+    protected function _addCollectionFromMappedRow()
+    {
+        $map = &$this->_currentMap;
+
+        $recordMetadata = $this->_getCollectionMetadataFromMappedRow();
+
+        $elementTexts = $map[CsvImport_ColumnMap::TYPE_ELEMENT];
+        // Keep only non empty fields to avoid removing them (allow update).
+        $elementTexts = array_values(array_filter($elementTexts, 'self::_removeEmptyElement'));
+        // Trim metadata to avoid spaces.
+        $elementTexts = $this->_trimElementTexts($elementTexts);
+
+        $extraData = $map[CsvImport_ColumnMap::TYPE_EXTRA_DATA];
+        // Empty fields should not be removed. Fields are not trimmed.
+
+        try {
+            $item = $this->_insert_collection($recordMetadata, $elementTexts, $extraData);
+        } catch (Omeka_Validator_Exception $e) {
+            $this->_log($e, Zend_Log::ERR);
+            return false;
+        } catch (Omeka_Record_Builder_Exception $e) {
+            $this->_log($e, Zend_Log::ERR);
+            return false;
+        }
+
+        // Makes it easy to unimport the record later.
+        $this->_recordImportedRecord('Collection', $record->id, '');
+        return $record;
+    }
+
+    /**
+     * Update a record based on a row string in the CSV file and returns it.
+     *
+     * @deprecated Since 2.1.1-full.
+     *
+     * @return Record|boolean The updated record or false if no record could be
+     * updated.
+     */
+    protected function _updateFromMappedRow()
+    {
+        $map = &$this->_currentMap;
+
+        $updateIdentifier = $this->_getMappedValue(
+            CsvImport_ColumnMap::TYPE_UPDATE_IDENTIFIER,
+            'internal id');
+
+        $recordType = $this->_getMappedValue(
+            CsvImport_ColumnMap::TYPE_RECORD_TYPE,
+            CsvImport_ColumnMap_RecordType::DEFAULT_RECORD_TYPE);
+
+        $recordIdentifier = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_RECORD_IDENTIFIER, '');
+
+        $record = $this->_getRecordByIdentifier($recordIdentifier, $recordType, $updateIdentifier);
+
+        // No record can be updated.
+        if (empty($record)) {
+            $msg = __('You try to update the record "%s", but it does not exist.', $recordIdentifier);
+            $this->_log($msg, Zend_Log::ERR);
+            return false;
+        }
+
+        // If there are files to attach to an item, import it separately.
+        if (get_class($record) == 'Item') {
+            $fileUrls = $map[CsvImport_ColumnMap::TYPE_FILE];
+            if (!$this->_attachFilesToItem($record, $fileUrls, false)) {
+                return false;
+            }
+        }
+
+        // Update of a record.
+        $action = $this->_getMappedValue(
+            CsvImport_ColumnMap::TYPE_UPDATE_MODE,
+            CsvImport_ColumnMap_UpdateMode::DEFAULT_UPDATE_MODE);
+        $this->_updateRecord($record, $action);
+
+        $this->updated_record_count++;
+
+        return $record;
+    }
+
+    /**
+     * Adds file metadata based on a row string in the CSV file and returns it.
+     *
+     * @return File|boolean The inserted file or false if metadata can't be
+     * added.
+     */
+    protected function _updateFileFromMappedRow()
+    {
+        $map = &$this->_currentMap;
+
+        $fileUrl = $map[CsvImport_ColumnMap::TYPE_FILE];
+        if (empty($fileUrl)) {
+            $msg = __('You should give the internal id or the original filename or the url of the file to import.');
+            $this->_log($msg, Zend_Log::ERR);
+            return false;
+        }
+        elseif (is_array($fileUrl)) {
+            if (count($fileUrl) > 1) {
+                $msg = __('A file can have only one url or path.');
+                $this->_log($msg, Zend_Log::ERR);
+                return false;
+            }
+            $fileUrl = reset($fileUrl);
+        }
+
+        $file = is_numeric($fileUrl) && (integer) $fileUrl > 0
+            // The value is the internal record id.
+            ? get_db()->getTable('File')->find($fileUrl)
+            // The value is the original filename.
+            : get_db()->getTable('File')->findBySql('original_filename = ?', array($fileUrl), true);
+
+        if (empty($file)) {
+            $msg = __('File "%s" does not exist in the database.', $fileUrl)
+                . ' ' . __('No item associated with it was found.')
+                . ' ' . __('Add items first before importing file metadata.');
+            $this->_log($msg, Zend_Log::ERR);
+            return false;
+        }
+
+        // Update file with new metadata.
+        $this->_updateRecord($file, CsvImport_ColumnMap_Action::ACTION_ADD);
+
+        $this->updated_record_count++;
+
+        return $file;
+    }
+
+    /**
+     * Helper to get item metadata from a mapped row string in the CSV file.
+     *
+     * This helper is used to create or to update an item.
+     *
+     * @return array
+     */
+    protected function _getItemMetadataFromMappedRow()
+    {
+        $map = &$this->_currentMap;
+
+        // TODO Check item type (can be a id or a name).
+        $itemType = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_ITEM_TYPE);
+        // TODO Sometimes, the item type is numeric, sometimes it is a string.
+        $builderItemType = is_numeric($itemType)
+            ? Builder_Item::ITEM_TYPE_ID
+            : Builder_Item::ITEM_TYPE_NAME;
+
+        // Check collection, if any.
+        $collectionId = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION);
+        if ($this->format == 'Manage') {
+            $collection = $this->_getRecordByIdentifier($collectionId, 'Collection', $this->_defaultValues['IdentifierField']);
+            if (empty($collection)) {
+                $collection = $this->_createRecordFromIdentifier($collectionId, 'Collection', $this->_defaultValues['IdentifierField']);
+            }
+            $collectionId = $collection->id;
+        }
+        // Collection should be null, not 0 or "".
+        $collectionId = $collectionId ?: null;
+
+        // Set values. Default and empty are managed directly in column map.
+        $recordMetadata = array();
+        if (!empty($itemType)) {
+            $recordMetadata[$builderItemType] = $itemType;
+        }
+        $recordMetadata[Builder_Item::COLLECTION_ID] = $collectionId;
+        $recordMetadata[Builder_Item::IS_PUBLIC] =
+            $this->_getMappedValue(CsvImport_ColumnMap::TYPE_PUBLIC);
+        $recordMetadata[Builder_Item::IS_FEATURED] =
+            $this->_getMappedValue(CsvImport_ColumnMap::TYPE_FEATURED);
+        $recordMetadata[Builder_Item::TAGS] =
+            $this->_getMappedValue(CsvImport_ColumnMap::TYPE_TAG);
+
+        return $recordMetadata;
+    }
+
+    /**
+     * Helper to get collection metadata from a mapped row string in the CSV
+     * file.
+     *
+     * This helper is used to create or to update a collection.
+     *
+     * @return array
+     */
+    protected function _getCollectionMetadataFromMappedRow()
+    {
+        $map = &$this->_currentMap;
+
+        // Set values. Default and empty are managed directly in column map.
+        $recordMetadata = array();
+        $recordMetadata[Builder_Item::IS_PUBLIC] =
+            $this->_getMappedValue(CsvImport_ColumnMap::TYPE_PUBLIC);
+        $recordMetadata[Builder_Item::IS_FEATURED] =
+            $this->_getMappedValue(CsvImport_ColumnMap::TYPE_FEATURED);
+
+        return $recordMetadata;
+    }
+
+    /**
+     * Adds metadata and extra data to an existing record.
+     *
+     * @param Record $record An existing and checked record object.
+     * @param string $action Allowed actions are "Update", "Add" and "Replace".
+     *
+     * @return Record|boolean
+     * The updated record or false if metadata can't be updated.
+     */
+    protected function _updateRecord(
+        $record,
+        $action = CsvImport_ColumnMap_Action::DEFAULT_ACTION
+    ) {
+        $map = &$this->_currentMap;
+
+        // Check action.
+        if (!in_array($action, array(
+                CsvImport_ColumnMap_Action::ACTION_UPDATE,
+                CsvImport_ColumnMap_Action::ACTION_ADD,
+                CsvImport_ColumnMap_Action::ACTION_REPLACE))
+            ) {
+            return false;
+        }
+
+        // Builder doesn't allow action "Update", only add and replace, and
+        // doesn't manage file directly.
+
+        // Prepare element texts.
+        $elementTexts = $map[CsvImport_ColumnMap::TYPE_ELEMENT];
+        // Trim metadata to avoid spaces.
+        $elementTexts = $this->_trimElementTexts($elementTexts);
+        // Keep only non empty fields to avoid removing them to allow update.
+        if ($action == CsvImport_ColumnMap_Action::ACTION_ADD || $action == CsvImport_ColumnMap_Action::ACTION_REPLACE) {
+            $elementTexts = array_values(array_filter($elementTexts, 'self::_removeEmptyElement'));
+        }
+        // Overwrite existing element text values if wanted.
+        if ($action == CsvImport_ColumnMap_Action::ACTION_UPDATE || $action == CsvImport_ColumnMap_Action::ACTION_REPLACE) {
+            foreach ($elementTexts as $key => $info) {
+                if ($info['element_id']) {
+                    $record->deleteElementTextsbyElementId((array) $info['element_id']);
+                }
+            }
+        }
+        // To reset keys is needed to avoid bug when there is no DC Title.
+        $elementTexts = array_values($elementTexts);
+
+        switch (get_class($record)) {
+            case 'Item':
+                $recordMetadata = $this->_getItemMetadataFromMappedRow();
+                $record = update_item($record, $recordMetadata, $elementTexts);
+                break;
+            case 'File':
+                $record->addElementTextsByArray($elementTexts);
+                break;
+            case 'Collection':
+                $recordMetadata = $this->_getCollectionMetadataFromMappedRow();
+                $record = update_collection($record, $recordMetadata, $elementTexts);
+                break;
+            default:
+                return false;
+        }
+
+        $extraData = $map[CsvImport_ColumnMap::TYPE_EXTRA_DATA];
+        $this->_setExtraData($record, $extraData, $action);
+
+        if (get_class($record) == 'Item') {
+            $fileUrls = $map[CsvImport_ColumnMap::TYPE_FILE];
+            // Check error. for files
+            if (!$this->_updateAttachedFilesOfItem($record, $fileUrls, false, $action)) {
+                return false;
+            }
+        }
+
+        return $record;
+    }
+
+    /**
+     * Attach a list of files to an item.
      *
      * @param Item $item
      * @param array $fileUrls An array of the urls of files to attach to item.
@@ -822,6 +1435,11 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     protected function _attachFilesToItem($item, $fileUrls, $itemDelete = true)
     {
+        // Sometime, fileUrls is a null or an empty string.
+        if (empty($fileUrls)) {
+            return true;
+        }
+
         foreach ($fileUrls as $fileUrl) {
             // Set the transfer strategy according to file name.
             $parsedFileUrl = parse_url($fileUrl);
@@ -864,275 +1482,313 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     }
 
     /**
-     * Adds a new file and add metadata based on a row string in the CSV file
-     * and returns it.
+     * Update attached files of an item.
      *
-     * @param string $row A row string in the CSV file
-     * @return File|boolean The inserted file or false if the file could not be
-     * added.
+     * @param Item $item
+     * @param array $fileUrls An array of the urls of files to attach to item.
+     * @param boolean $itemDelete Delete item (default) or not if the file can't
+     *   be ingested.
+     * @param string $action Allowed actions are "Update", "Add" and "Replace".
+     * Here, Update and Replace are the same (one field).
+     * @return boolean True if success, false else.
      */
-    protected function _addFileFromRow($row)
-    {
-        $result = $this->getColumnMaps()->map($row);
-
-        // Check if the file url is present.
-        $fileUrl = $result[CsvImport_ColumnMap::TYPE_FILE_URL];
-        if (empty($fileUrl)) {
-            $msg = __('You should give the path or the url of the file to import.');
-            $this->_log($msg, Zend_Log::ERR);
-            return false;
+    protected function _updateAttachedFilesOfItem(
+        $item,
+        $fileUrls,
+        $itemDelete = true,
+        $action = CsvImport_ColumnMap_Action::DEFAULT_ACTION
+    ) {
+        // Sometime, fileUrls is a null or an empty string, but empty array
+        // should be processed.
+        // Null means no value, and empty string is incorrect here.
+        if (is_null($fileUrls) || $fileUrls == '') {
+            return true;
         }
 
-        // Check if the source item id is present.
-        if (!isset($result[CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID])
-                || empty($result[CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID])
-            ) {
-            $msg = __('No indication of the source item to which attach filename.', $fileUrl);
-            $this->_log($msg, Zend_Log::ERR);
-            return false;
+        // Get list of current file urls.
+        $currentFiles = $item->Files;
+        $currentFileUrls = array();
+        foreach ($currentFiles as $file) {
+            $currentFileUrls[$file->id] = $file->original_filename;
         }
 
-        // Looking for the item id.
-        $sourceItemId = $result[CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID];
-        $csvImportedItem = get_db()->getTable('CsvImport_ImportedItem')->findBy(array(
-            'source_item_id' => $sourceItemId,
-            'import_id' => $this->id,
-        ), 1);
-        if (empty($csvImportedItem)) {
-            $msg = __('No item with the source item id "%s" does exist in the database.', $sourceItemId)
-                . ' ' . __('File rows should always be imported after the item to which they are attached.');
-            $this->_log($msg, Zend_Log::ERR);
-            return false;
-        }
-        $item = get_record_by_id('Item', $csvImportedItem[0]->item_id);
+        // TODO Ideally, all files should be reimported, even if the url is the
+        // same. Currently, there is no option for that, so files should be
+        // removed before reimport. This process avoids many careless errors.
+        switch ($action) {
+            case CsvImport_ColumnMap_Action::ACTION_ADD:
+                $newFileUrls = array_diff($fileUrls, $currentFileUrls);
+                if (!$this->_attachFilesToItem($item, $newFileUrls, false)) {
+                    return false;
+                }
+                break;
 
-        // Set the transfer strategy according to file name.
-        $parsedFileUrl = parse_url($fileUrl);
-        if (!isset($parsedFileUrl['scheme']) || $parsedFileUrl['scheme'] == 'file') {
-            $transferStrategy = 'Filesystem';
-            $fileUrl = $parsedFileUrl['path'];
-        }
-        else {
-            $transferStrategy = 'Url';
+            // Update or Replace means to replace all files, so existing ones
+            // should be deleted before. They can be reordered too.
+            default:
+                $currentFilesById = array();
+                foreach ($currentFiles as $file) {
+                    $currentFilesById[$file->id] = $file;
+                }
+
+                $deleteFileUrls = array_diff($currentFileUrls, $fileUrls);
+                foreach ($deleteFileUrls as $id => $url) {
+                    $file = $currentFilesById[$id];
+                    $file->delete();
+                    release_object($file);
+                }
+
+                // Add new files.
+                $newFileUrls = array_diff($fileUrls, $currentFileUrls);
+                if (!$this->_attachFilesToItem($item, $newFileUrls, false)) {
+                    return false;
+                }
+
+                // Reorder files (only possible with the full list files).
+                // Get the updated list of files (don't use Files).
+                $currentFiles = $item->getFiles();
+                $currentFilesByUrl = array();
+                foreach ($currentFiles as $file) {
+                    $currentFilesByUrl[$file->original_filename] = $file;
+                }
+                // All files should be processed, because this is an order.
+                $i = 0;
+                foreach ($fileUrls as $url) {
+                    $file = $currentFilesByUrl[$url];
+                    $file->order = ++$i;
+                    $file->save();
+                }
+                break;
         }
 
-        // Import the file and attach it to the item.
-        try {
-            $files = insert_files_for_item($item,
-                $transferStrategy,
-                $fileUrl,
-                array('ignore_invalid_files' => false));
-        } catch (Omeka_File_Ingest_InvalidException $e) {
-            $msg = __("Error occurred when attempting to ingest '%s' as a file: %s",
-                $fileUrl, $e->getMessage());
-            $this->_log($msg, Zend_Log::ERR);
-            return false;
-        }
-        // Need to release file in order to update all current data, because
-        // $file->save() is not enough.
-        $file_id = $files[0]->id;
-        release_object($files);
-        $file = get_record_by_id('File', $file_id);
-
-        // Update file with new metadata.
-        $this->_updateRecord($file, $result, CsvImport_ColumnMap_UpdateMode::MODE_ADD);
-        return $file;
+        return true;
     }
 
     /**
-     * Adds file metadata based on a row string in the CSV file and returns it.
+     * Delete an existing record.
      *
-     * @param string $row A row string in the CSV file
-     * @return File|boolean The inserted file or false if metadata can't be
-     * added.
+     * @param Record $record The existing and checked record object to remove.
+     * @return boolean Success.
      */
-    protected function _updateFileFromRow($row)
+    protected function _deleteRecord($record)
     {
-        $result = $this->getColumnMaps()->map($row);
-
-        $fileUrl = $result[CsvImport_ColumnMap::TYPE_FILE_URL];
-        if (empty($fileUrl)) {
-            $msg = __('You should give the path or the url of the file to import.');
-            $this->_log($msg, Zend_Log::ERR);
-            return false;
-        }
-
-        $file = get_db()->getTable('File')->findBySql('original_filename = ?', array($fileUrl), true);
-        if (empty($file)) {
-            $msg = __('File "%s" does not exist in the database.', $fileUrl)
-                . ' ' . __('No item associated with it was found.')
-                . ' ' . __('Add items first before importing file metadata.');
-            $this->_log($msg, Zend_Log::ERR);
-            return false;
-        }
-
-        // Update file with new metadata.
-        $this->_updateRecord($file, $result, CsvImport_ColumnMap_UpdateMode::MODE_ADD);
-        return $file;
-    }
-
-    /**
-     * Update a record based on a row string in the CSV file and returns it.
-     *
-     * @param string $row A row string in the CSV file
-     * @return Record|boolean The updated record or false if no record could be
-     * updated.
-     */
-    protected function _updateFromRow($row)
-    {
-        $map = $this->getColumnMaps()->map($row);
-
-        $updateIdentifier = isset($map[CsvImport_ColumnMap::TYPE_UPDATE_IDENTIFIER])
-            ? $map[CsvImport_ColumnMap::TYPE_UPDATE_IDENTIFIER]
-            : 'internal id';
-        $recordType = isset($map[CsvImport_ColumnMap::TYPE_RECORD_TYPE])
-            ? $map[CsvImport_ColumnMap::TYPE_RECORD_TYPE]
-            : 'Item';
-        $recordIdentifier = isset($map[CsvImport_ColumnMap::TYPE_RECORD_IDENTIFIER])
-            ? $map[CsvImport_ColumnMap::TYPE_RECORD_IDENTIFIER]
-            : '';
-
-        $record = $this->_getRecordByIdentifier($recordIdentifier, $recordType, $updateIdentifier);
-
-        // No record can be updated.
-        if (empty($record)) {
-            $msg = __('You try to update the record "%s", but it does not exist.', $recordIdentifier);
-            $this->_log($msg, Zend_Log::ERR);
-            return false;
-        }
-
-        // If there are files to attach to an item, import it separately.
-        if (method_exists($record, 'addFile')) {
-            $fileUrls = $map[CsvImport_ColumnMap::TYPE_FILE];
-            if (!$this->_attachFilesToItem($record, $fileUrls, false)) {
+        if ($record instanceof Omeka_Record_AbstractRecord) {
+            // Deletion of a record return a boolean.
+            try {
+                $record = $record->delete();
+            } catch (Omeka_Record_Exception $e) {
+                $this->_log($e, Zend_Log::WARN);
+                return false;
+            } catch (Exception $e) {
+                $this->_log($e, Zend_Log::ERR);
                 return false;
             }
+            $this->updated_record_count++;
+            return true;
         }
-
-        // Update of a record.
-        $updateMode = isset($map[CsvImport_ColumnMap::TYPE_UPDATE_MODE])
-            ? $map[CsvImport_ColumnMap::TYPE_UPDATE_MODE]
-            : CsvImport_ColumnMap_UpdateMode::DEFAULT_UPDATE_MODE;
-
-        return $this->_updateRecord($record, $map, $updateMode);
-    }
-
-    /**
-     * Adds metadata to an existing record.
-     *
-     * @param Record $record An existing and checked record object.
-     * @param array $map A mapped row.
-     * @param string $mode Update mode: "Update", "Add" or "Replace".
-     *
-     * @return Record|boolean
-     *   The updated record or false if metadata can't be updated.
-     */
-    protected function _updateRecord(
-        $record,
-        $map,
-        $mode = CsvImport_ColumnMap_UpdateMode::DEFAULT_UPDATE_MODE
-    ) {
-        // Check mode.
-        if (!$mode) {
-            return false;
-        }
-
-        // Import metadata.
-        $elementTexts = $map[CsvImport_ColumnMap::TYPE_ELEMENT];
-        // Trim metadata to avoid spaces.
-        $elementTexts = $this->_trimElementTexts($elementTexts);
-        // Keep only non empty fields to avoid removing them to allow update.
-        if ($mode == CsvImport_ColumnMap_UpdateMode::MODE_ADD || $mode == CsvImport_ColumnMap_UpdateMode::MODE_REPLACE) {
-            $elementTexts = array_values(array_filter($elementTexts, 'self::_removeEmptyElement'));
-        }
-        // Overwrite existing element text values if wanted.
-        if ($mode == CsvImport_ColumnMap_UpdateMode::MODE_UPDATE || $mode == CsvImport_ColumnMap_UpdateMode::MODE_REPLACE) {
-            foreach ($elementTexts as $key => $info) {
-                if ($info['element_id']) {
-                    $record->deleteElementTextsbyElementId((array) $info['element_id']);
-                }
-            }
-        }
-        // To reset keys is needed to avoid bug when there is no DC Title.
-        $elementTexts = array_values($elementTexts);
-
-        $record->addElementTextsByArray($elementTexts);
-
-        $extraData = $map[CsvImport_ColumnMap::TYPE_EXTRA_DATA];
-        $this->_setExtraData($record, $extraData, $mode);
-
-        $record->save();
-        return $record;
+        return false;
     }
 
     /**
      * Get a record from an identifier.
      *
-     * @param string $recordIdentifier The identifier of the record to update.
+     * @param string $identifier The identifier of the record to update.
      * @param string $recordType The type of the record to update.
-     * @param string $identifier The type of identifier used to identify
+     * @param string $identifierField The type of identifier used to identify
      * the record to update.
      *
-     * @return Item|boolean The record to update or false if no one exists.
+     * @return Record|boolean The record to update or false if no one exists.
      */
-    protected function _getRecordByIdentifier($recordIdentifier, $recordType = 'Item', $identifier = 'internal id')
-    {
+    protected function _getRecordByIdentifier(
+        $identifier,
+        $recordType = CsvImport_ColumnMap_RecordType::DEFAULT_RECORD_TYPE,
+        $identifierField = CsvImport_ColumnMap_IdentifierField::DEFAULT_IDENTIFIER_FIELD
+    ) {
         $record = false;
 
-        if (empty($recordIdentifier)) {
+        if (empty($identifier)) {
         }
-        elseif ($identifier == 'internal id') {
-            if (!empty($recordType) && $recordType != 'Any') {
-                $record = get_record_by_id($recordType, $recordIdentifier);
+        elseif ($identifierField == 'internal id') {
+            if (!empty($recordType) && $recordType != 'Any' && class_exists($recordType)) {
+                $record = get_record_by_id($recordType, $identifier);
             }
         }
-        elseif ($identifier == 'original_filename') {
+        elseif (in_array(strtolower($identifierField), array(
+                'original filename',
+                'filename',
+                'md5',
+                'authentication',
+                // Deprecated.
+                'original_filename',
+            ))) {
             if (empty($recordType) || $recordType == 'Any' || $recordType == 'File') {
-                $record = get_db()->getTable('File')->findBySql(
-                    'original_filename = ?',
-                    array('original_filename' => $recordIdentifier),
-                    true);
+                $field = strtolower(str_replace(' ', '_', $identifierField));
+                if ($field == 'md5') {
+                    $field = 'authentication';
+                }
+                $record = get_db()->getTable('File')->findBySql($field . ' = ?', array($identifier), true);
             }
         }
         // Record identifier is an existing element text.
         else {
             $db = get_db();
 
-            $elementSet = trim(substr($identifier, 0, strrpos($identifier, ':')));
-            $element = trim(substr($identifier, strrpos($identifier, ':') + 1));
+            $element = $this->_getElementFromIdentifierField($identifierField);
+            if (!empty($element)) {
+                // Use of ordered placeholders.
+                $bind = array();
+                $bind[] = $element->id;
+                $bind[] = $identifier;
+                $sql_record_type = '';
+                if (!empty($recordType) && $recordType != 'Any') {
+                    $sql_record_type = 'AND element_texts.record_type = ?';
+                    $bind[] = $recordType;
+                }
 
-            // Use of ordered placeholders.
-            $bind = array();
-            $bind[] = $elementSet;
-            $bind[] = $element;
-            $bind[] = $recordIdentifier;
-            $sql_record_type = '';
-            if (!empty($recordType) && $recordType != 'Any') {
-                $sql_record_type = 'AND element_texts.record_type = ?';
-                $bind[] = $recordType;
-            }
-
-            $sql = "
-                SELECT element_texts.record_type, element_texts.record_id
-                FROM {$db->ElementText} element_texts
-                    JOIN {$db->Element} elements
-                        ON element_texts.element_id = elements.id
-                    JOIN {$db->ElementSet} element_sets
-                        ON elements.element_set_id = element_sets.id
-                WHERE element_sets.name = ?
-                    AND elements.name = ?
-                    AND element_texts.text = ?
-                    $sql_record_type
-                LIMIT 1
-            ";
-            $result = $db->fetchRow($sql, $bind);
-
-            if (!empty($result)) {
-                $record = get_record_by_id($result['record_type'], $result['record_id']);
+                $sql = "
+                    SELECT element_texts.record_type, element_texts.record_id
+                    FROM {$db->ElementText} element_texts
+                    WHERE element_texts.element_id = ?
+                        AND element_texts.text = ?
+                        $sql_record_type
+                    LIMIT 1
+                ";
+                $result = $db->fetchRow($sql, $bind);
+                if (!empty($result)) {
+                    $record = get_record_by_id($result['record_type'], $result['record_id']);
+                }
             }
         }
 
         return $record;
+    }
+
+    /**
+     * Create a basic record from an identifier, that  should be an element.
+     *
+     * @param string $identifier The identifier of the record to create.
+     * @param string $recordType The type of the record to update.
+     * @param string $identifierField The type of identifier used to identify
+     * the record to create.
+     *
+     * @return Record|boolean The created record or false if failure.
+     */
+    protected function _createRecordFromIdentifier(
+        $identifier,
+        $recordType = CsvImport_ColumnMap_RecordType::DEFAULT_RECORD_TYPE,
+        $identifierField = CsvImport_ColumnMap_IdentifierField::DEFAULT_IDENTIFIER_FIELD
+    ) {
+        if (!in_array($recordType, array('Collection', 'Item', 'File'))) {
+            return false;
+        }
+
+        if (in_array(strtolower($identifierField), array('internal id', 'original filename', 'filename', 'original_filename' /* Deprecated */))) {
+            return false;
+        }
+
+        $element = $this->_getElementFromIdentifierField($identifierField);
+        if (empty($element)) {
+            return false;
+        }
+
+        try {
+            $record = new $recordType;
+            $record->addElementTextsByArray(array(
+                array('element_id' => $element->id,
+                    'text' => $identifier,
+                    'html' => false),
+            ));
+            $record->save();
+        } catch (Exception $e) {
+            return false;
+        }
+
+        $this->_recordImportedRecord($recordType, $record->id, $identifier);
+        return $record;
+    }
+
+    /**
+     * Records that a record was successfully processed in the database.
+     *
+     * @param string $recordType The type of the imported record.
+     * @param int $recordId The id of the imported record.
+     * @param string $identifier The identifier of the imported record, if any.
+     */
+    protected function _recordImportedRecord($recordType, $recordId, $identifier = '')
+    {
+        $csvImportedRecord = new CsvImport_ImportedRecord();
+        $csvImportedRecord->setArray(array(
+            'import_id' => $this->id,
+            'record_type' => $recordType,
+            'record_id' => $recordId,
+            'identifier' => $identifier,
+        ));
+        $csvImportedRecord->save();
+        $this->_importedCount++;
+    }
+
+    /**
+     * Log an import message
+     * Every message will log the import ID.
+     * Messages that have %memory% will include memory usage information.
+     *
+     * @param string $msg The message to log
+     * @param int $priority The priority of the message
+     */
+    protected function _log($msg, $priority = Zend_Log::DEBUG)
+    {
+        $prefix = "[CsvImport][#{$this->id}]";
+        $msg = str_replace('%memory%', memory_get_usage(), $msg);
+        $msg = str_replace('%time%', date('Y-m-d G:i:s'), $msg);
+        _log("$prefix $msg", $priority);
+    }
+
+    /**
+     * Return the element from an identifier.
+     *
+     * @return Element|boolean
+     */
+    private function _getElementFromIdentifierField($identifierField)
+    {
+        static $elements = array();
+
+        if (!isset($elements[$identifierField])) {
+            $elements[$identifierField] = null;
+            if ($parts = explode(
+                    CsvImport_ColumnMap_MixElement::DEFAULT_COLUMN_NAME_DELIMITER,
+                    $identifierField)
+                ) {
+                if (count($parts) == 2) {
+                    $elementSetName = trim($parts[0]);
+                    $elementName = trim($parts[1]);
+                    $element = get_db()->getTable('Element')
+                        ->findByElementSetNameAndElementName($elementSetName, $elementName);
+                    if ($element) {
+                        $elements[$identifierField] = $element;
+                    }
+                }
+            }
+        }
+
+        return $elements[$identifierField];
+    }
+
+    /**
+     * Return the mapped value from a row if it exists, else the default value.
+     *
+     * @param string $columnName
+     * @param var $defaultValue Used if no default value exists.
+     * @return var
+     */
+    private function _getMappedValue($columnName, $defaultValue = null)
+    {
+        if (isset($this->_currentMap[$columnName])) {
+            return $this->_currentMap[$columnName];
+        }
+        if (isset($this->_defaultValues[$columnName])) {
+            return $this->_defaultValues[$columnName];
+        }
+        return $defaultValue;
     }
 
     /**
@@ -1169,39 +1825,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         return $elementTexts;
     }
 
-    /**
-     * Records that an item was successfully imported in the database.
-     *
-     * @param int $itemId The id of the item imported
-     * @param string $sourceItemId The source item id of the item imported
-     */
-    protected function _recordImportedItemId($itemId, $sourceItemId)
-    {
-        $csvImportedItem = new CsvImport_ImportedItem();
-        $csvImportedItem->setArray(array(
-            'item_id' => $itemId,
-            'source_item_id' => $sourceItemId,
-            'import_id' => $this->id,
-        ));
-        $csvImportedItem->save();
-        $this->_importedCount++;
-    }
-
-    /**
-     * Log an import message
-     * Every message will log the import ID.
-     * Messages that have %memory% will include memory usage information.
-     *
-     * @param string $msg The message to log
-     * @param int $priority The priority of the message
-     */
-    protected function _log($msg, $priority = Zend_Log::DEBUG)
-    {
-        $prefix = "[CsvImport][#{$this->id}]";
-        $msg = str_replace('%memory%', memory_get_usage(), $msg);
-        $msg = str_replace('%time%', date('Y-m-d G:i:s'), $msg);
-        _log("$prefix $msg", $priority);
-    }
+    /* Functions that override Omeka ones in order to process extra data. */
 
     /**
      * Insert a new item into the Omeka database.
@@ -1218,36 +1842,52 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      */
     private function _insert_item($metadata = array(), $elementTexts = array(), $fileMetadata = array(), $postData = array())
     {
-        $builder = new CsvImport_Builder_Item($this->getDb());
-        $builder->setRecordMetadata($metadata);
-        $builder->setElementTexts($elementTexts);
-        $builder->setPostData($postData);
-        $builder->setFileMetadata($fileMetadata);
-        return $builder->build();
+        $record = insert_item($metadata, $elementTexts, $fileMetadata);
+        $result = $this->_setExtraData($record, $postData, CsvImport_ColumnMap_Action::ACTION_ADD);
+        return $record;
+    }
+
+    /**
+     * Insert a new collection into the Omeka database.
+     *
+     * Post data can be added, unlike insert_collection().
+     *
+     * @see insert_collection()
+     *
+     * @param array $metadata
+     * @param array $elementTexts
+     * @param array $postData
+     * @return Item
+     */
+    private function _insert_collection($metadata = array(), $elementTexts = array(), $postData = array())
+    {
+        $record = insert_collection($metadata, $elementTexts);
+        $result = $this->_setExtraData($record, $postData, CsvImport_ColumnMap_Action::ACTION_ADD);
+        return $record;
     }
 
     /**
      * Helper to set extra data for update of records.
      *
-     * @internal $mode is currently not used, because the way plugins manage
+     * @internal $action is currently not used, because the way plugins manage
      * updates of their data varies.
      *
-     * @todo Manage update mode via delete/add data?
+     * @todo Manage action via delete/add data?
      *
      * @see CSVImport_Builder_Item::_addPostData()
      *
      * @param Record $record
      * @param array $extraData
-     * @param string $mode Update mode: "Update", "Add" or "Replace".
-     * @return void
+     * @param string $action Currently not used.
+     * @return boolean Success or not.
      */
     private function _setExtraData(
         $record,
         $extraData,
-        $mode = CsvImport_ColumnMap_UpdateMode::DEFAULT_UPDATE_MODE
+        $action = CsvImport_ColumnMap_Action::DEFAULT_ACTION
     ) {
-        if (empty($extraData) || !$mode) {
-            return;
+        if (empty($record) || empty($extraData) || empty($action)) {
+            return false;
         }
 
         if (Zend_Registry::get('bootstrap')->config->jobs->dispatcher->longRunning
@@ -1258,6 +1898,9 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         else {
             $this->_setPostDataViaSetArray($record, $extraData);
         }
+
+        $record->save();
+        return true;
     }
 
     /**
@@ -1266,25 +1909,12 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
      * @see CSVImport_Builder_Item::_setPostDataViaSetArray()
      *
      * @param Record $record
-     * @param array $post
+     * @param array $post Post data.
      */
-    private function _setPostDataViaSetArray($record, $postData)
+    private function _setPostDataViaSetArray($record, $post)
     {
-        $post = $postData;
-
         // Some default type have a special filter.
         switch (get_class($record)) {
-            case 'Collection':
-                $options = array('inputNamespace' => 'Omeka_Filter');
-                // User form input does not allow HTML tags or superfluous whitespace
-                $filters = array(
-                    'public' => 'Boolean',
-                    'featured' => 'Boolean',
-                );
-                $filter = new Zend_Filter_Input($filters, null, $post, $options);
-                $post = $filter->getUnescaped();
-                break;
-
             case 'Item':
                 $options = array('inputNamespace' => 'Omeka_Filter');
                 $filters = array(
@@ -1307,14 +1937,19 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
                 }
                 break;
 
-            case 'ItemType':
+            case 'Collection':
                 $options = array('inputNamespace' => 'Omeka_Filter');
-                // User form input does not allow superfluous whitespace
-                $filters = array('name' => array('StripTags', 'StringTrim'),
-                    'description' => array('StringTrim'));
+                // User form input does not allow HTML tags or superfluous whitespace
+                $filters = array(
+                    'public' => 'Boolean',
+                    'featured' => 'Boolean',
+                );
                 $filter = new Zend_Filter_Input($filters, null, $post, $options);
                 $post = $filter->getUnescaped();
                 break;
+
+            default:
+                return;
         }
 
         // Avoid an issue when the post is null.

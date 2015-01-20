@@ -2,6 +2,8 @@
 /**
  * CsvImport_ColumnMap_UpdateMode class
  *
+ * @deprecated Since 2.1.1-full.
+ *
  * @package CsvImport
  */
 class CsvImport_ColumnMap_UpdateMode extends CsvImport_ColumnMap
@@ -30,8 +32,7 @@ class CsvImport_ColumnMap_UpdateMode extends CsvImport_ColumnMap
      */
     public function map($row, $result)
     {
-        $result = $row[$this->_columnName];
-        $result = ucfirst(strtolower($result));
+        $result = ucfirst(strtolower(trim($row[$this->_columnName])));
         if (empty($result)) {
             $result = self::DEFAULT_UPDATE_MODE;
         }

@@ -12,21 +12,21 @@ class CsvImport_ColumnMap_File extends CsvImport_ColumnMap
     const DEFAULT_FILE_DELIMITER = ',';
 
     private $_fileDelimiter;
+    // Deprecated, used for old files for `Mixed` and `Update` formats.
+    private $_isSingle;
 
     /**
      * @param string $columnName
      * @param string $fileDelimiter
      */
-    public function __construct($columnName, $fileDelimiter = null)
+    public function __construct($columnName, $fileDelimiter = null, $isSingle = false)
     {
         parent::__construct($columnName);
         $this->_type = CsvImport_ColumnMap::TYPE_FILE;
-        if ($fileDelimiter !== null) {
-            $this->_fileDelimiter = $fileDelimiter;
-        }
-        else {
-            $this->_fileDelimiter = self::getDefaultFileDelimiter();
-        }
+        $this->_fileDelimiter = is_null($fileDelimiter)
+            ? self::getDefaultFileDelimiter()
+            : $fileDelimiter;
+        $this->_isSingle = (boolean) $isSingle;
     }
 
     /**
@@ -49,9 +49,18 @@ class CsvImport_ColumnMap_File extends CsvImport_ColumnMap
             }
             $trimmedUrls = array_map('trim', $rawUrls);
             $cleanedUrls = array_diff($trimmedUrls, array(''));
+            if (!is_array($result)) {
+                $result = array($result);
+            }
             $result = array_merge($result, $cleanedUrls);
+            $result = array_filter($result);
             $result = array_unique($result);
         }
+
+        if ($this->_isSingle) {
+            $result = reset($result);
+        }
+
         return $result;
     }
 
@@ -63,6 +72,16 @@ class CsvImport_ColumnMap_File extends CsvImport_ColumnMap
     public function getFileDelimiter()
     {
         return $this->_fileDelimiter;
+    }
+
+    /**
+     * Return the file delimiter.
+     *
+     * @return string The file delimiter
+     */
+    public function getIsSingle()
+    {
+        return $this->_isSingle;
     }
 
     /**

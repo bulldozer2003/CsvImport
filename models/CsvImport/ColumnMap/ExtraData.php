@@ -27,9 +27,9 @@ class CsvImport_ColumnMap_ExtraData extends CsvImport_ColumnMap
         $this->_type = CsvImport_ColumnMap::TYPE_EXTRA_DATA;
         $this->_columnNameDelimiter = self::DEFAULT_COLUMN_NAME_DELIMITER;
 
-        $this->_elementDelimiter = ($elementDelimiter !== null)
-            ? $elementDelimiter
-            : self::getDefaultElementDelimiter();
+        $this->_elementDelimiter = $elementDelimiter === null
+            ? self::getDefaultElementDelimiter()
+            : $elementDelimiter;
 
         $this->_postKey = $this->_getPostKeyFromColumnName();
         $this->_isDataMultivalued = $this->_isColumnMultivalued();
@@ -58,32 +58,6 @@ class CsvImport_ColumnMap_ExtraData extends CsvImport_ColumnMap
     }
 
     /**
-     * Return the post key, i.e. list of non empty subkeys of the column name.
-     *
-     * @return array The cleaned post key of the column.
-     */
-    protected function _getPostKeyFromColumnName()
-    {
-        return empty($this->_columnNameDelimiter)
-            ? array(trim($this->_columnName))
-            : array_filter(array_map('trim', explode($this->_columnNameDelimiter, $this->_columnName)));
-    }
-
-    /**
-     * Check if the data is multivalued.
-     *
-     * @internal When the name is finished with the delimiter, it means that is
-     * a multivalued data.
-     *
-     * @return array The cleaned post key of the column.
-     */
-    protected function _isColumnMultivalued()
-    {
-        return $this->_elementDelimiter !== ''
-            && substr($this->_columnName, -1) == $this->getColumnNameDelimiter();
-    }
-
-    /**
      * Sets the mapping options.
      *
      * @param array $options
@@ -99,6 +73,7 @@ class CsvImport_ColumnMap_ExtraData extends CsvImport_ColumnMap
         if (isset($options['postKey'])) {
             $this->_postKey = $options['postKey'];
         }
+        $this->_isDataMultivalued = $this->_isColumnMultivalued();
     }
 
     /**
@@ -129,6 +104,32 @@ class CsvImport_ColumnMap_ExtraData extends CsvImport_ColumnMap
     public function getPostKey()
     {
         return $this->_postKey;
+    }
+
+    /**
+     * Return the post key, i.e. list of non empty subkeys of the column name.
+     *
+     * @return array The cleaned post key of the column.
+     */
+    protected function _getPostKeyFromColumnName()
+    {
+        return empty($this->_columnNameDelimiter)
+            ? array(trim($this->_columnName))
+            : array_filter(array_map('trim', explode($this->_columnNameDelimiter, $this->_columnName)));
+    }
+
+    /**
+     * Check if the data is multivalued.
+     *
+     * @internal When the name is finished with the delimiter, it means that is
+     * a multivalued data.
+     *
+     * @return array The cleaned post key of the column.
+     */
+    protected function _isColumnMultivalued()
+    {
+        return $this->_elementDelimiter !== ''
+            && substr($this->_columnName, -1) == $this->getColumnNameDelimiter();
     }
 
     /**

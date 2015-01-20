@@ -6,6 +6,11 @@
  */
 class CsvImport_ColumnMap_RecordType extends CsvImport_ColumnMap
 {
+    // Because Omeka is built to display items, Item is the default type.
+    const DEFAULT_RECORD_TYPE = 'Item';
+
+    private $_recordType;
+
     /**
      * @param string $columnName
      */
@@ -20,11 +25,17 @@ class CsvImport_ColumnMap_RecordType extends CsvImport_ColumnMap
      *
      * @param array $row The row to map
      * @param array $result
-     * @return string Type of the record.
+     * @return string|boolean Type of the record.
      */
     public function map($row, $result)
     {
-        $result = $row[$this->_columnName];
+        $result = ucfirst(strtolower(trim($row[$this->_columnName])));
+
+        if (!in_array($result, array('', 'Collection', 'Item', 'File', 'Any'))) {
+            return false;
+        }
+
+        // TODO Check if this is either Any, either can be an instance of Omeka_Record_AbstractRecord.
         return $result;
     }
 }

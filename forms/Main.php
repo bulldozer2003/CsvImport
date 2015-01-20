@@ -39,9 +39,11 @@ class CsvImport_Form_Main extends Omeka_Form
             // 'label' => __('Import type'),
             'description'=> __('Choose the type of record (the format of your file) you want to import.'),
             'multiOptions' => array(
+                'Manage' => __('Manage records (import, update, remove)'),
                 'Report' => __('Omeka CSV Report'),
                 'Item' => __('Items'),
-                'File' => __('Files metadata'),
+                // Deprecated.
+                'File' => __('Files metadata (update)'),
                 'Mix' => __('Mixed records'),
                 'Update' => __('Update records'),
             ),
@@ -54,46 +56,92 @@ class CsvImport_Form_Main extends Omeka_Form
         $this->_addTagDelimiterElement();
         $this->_addFileDelimiterElement();
 
-        $values = get_db()->getTable('ItemType')->findPairsForSelectForm();
-        $values = array('' => __('Default item type')) + $values;
+        $identifierField = get_option('csv_import_identifier_field');
+        if (!empty($identifierField) && $identifierField != 'internal id') {
+            $currentIdentifierField = $this->_getElementFromIdentifierField($identifierField);
+            if ($currentIdentifierField) {
+                $identifierField = $currentIdentifierField->id;
+            }
+        }
+        $values = get_table_options('Element', null, array(
+            'record_types' => array('All'),
+            'sort' => 'alphaBySet',
+        ));
+        $values = array(
+            '' => __('No default identifier field'),
+            'internal id' => __('Internal id'),
+            // 'filename' => __('Imported filename (to import files only)'),
+            // 'original filename' => __('Original filename (to import files only)'),
+        ) + $values;
+        $this->addElement('select', 'identifier_field', array(
+            'label' => __('Identifier field (required)'),
+            'description' => __('The default identifier should be available for all record types that are currently imported in the file.'),
+            'multiOptions' => $values,
+            'value' => $identifierField,
+        ));
+
+        $this->addElement('select', 'action', array(
+            'label' => __('Action'),
+            'multiOptions' => label_table_options(array(
+                CsvImport_ColumnMap_Action::ACTION_UPDATE_ELSE_CREATE
+                    => __('Update the record if it exists, else create one'),
+                CsvImport_ColumnMap_Action::ACTION_CREATE
+                    => __('Create a new record'),
+                CsvImport_ColumnMap_Action::ACTION_UPDATE
+                    => __('Update values of specific fields'),
+                CsvImport_ColumnMap_Action::ACTION_ADD
+                    => __('Add values to specific fields'),
+                CsvImport_ColumnMap_Action::ACTION_REPLACE
+                    => __('Replace values of all fields'),
+                CsvImport_ColumnMap_Action::ACTION_DELETE
+                    => __('Delete the record'),
+                CsvImport_ColumnMap_Action::ACTION_SKIP
+                    => __('Skip process of the record'),
+            ), __('No default action')),
+        ));
+
+
+        $values = get_table_options('ItemType', __('No default item type'));
         $this->addElement('select', 'item_type_id', array(
-            'label' => __('Default item type'),
+            'label' => __('Item type'),
             'multiOptions' => $values,
         ));
 
-        $values = get_db()->getTable('Collection')->findPairsForSelectForm();
-        $values = array('' => __('Default collection')) + $values;
+        $values = get_table_options('Collection', __('No default collection'));
         $this->addElement('select', 'collection_id', array(
-            'label' => __('Select default collection'),
+            'label' => __('Collection'),
             'multiOptions' => $values,
         ));
 
-        $this->addElement('checkbox', 'items_are_public', array(
-            'label' => __('Make all items public?'),
+        $this->addElement('checkbox', 'records_are_public', array(
+            'label' => __('Make records public'),
+            'description' => __('Check to make records (items or collections) public by default.'),
         ));
 
-        $this->addElement('checkbox', 'items_are_featured', array(
-            'label' => __('Feature all items?'),
+        $this->addElement('checkbox', 'records_are_featured', array(
+            'label' => __('Feature records'),
+            'description' => __('Check to make records (items or collections) featured by default.'),
         ));
 
         $this->addElement('checkbox', 'elements_are_html', array(
-            'label' => __('All imported elements are html?'),
-            'description' => __('This checkbox allows to set default format of all imported elements as raw text or html.'),
+            'label' => __('Elements are html'),
+            'description' => __('Set default format of all imported elements as html, else raw text.'),
             'value' => get_option('csv_import_html_elements'),
         ));
 
         $this->addElement('checkbox', 'create_collections', array(
-            'label' => __('Create collections?'),
+            'label' => __('Create collections'),
             'description' => __("If the collection of an item doesn't exist, it will be created.") . '<br />'
                 .  __('Use "Update" to set metadata of a collection.'),
             'value' => get_option('csv_import_create_collections'),
         ));
 
        $this->addElement('select', 'contains_extra_data', array(
-            'label' => __('Contains extra data?'),
+            'label' => __('Contains extra data'),
             'description' => __('Other columns can be used as values for non standard data.'),
             'multiOptions' =>array(
                 'no' => __('No, so unrecognized column names will be noticed'),
+                'manual' => __('Perhaps, so the mapping should be done manually'),
                 'ignore' => __('Ignore unrecognized column names'),
                 'yes' => __("Yes, so column names won't be checked"),
             ),
@@ -136,10 +184,12 @@ class CsvImport_Form_Main extends Omeka_Form
 
         $this->addDisplayGroup(
             array(
+                'identifier_field',
+                'action',
                 'item_type_id',
                 'collection_id',
-                'items_are_public',
-                'items_are_featured',
+                'records_are_public',
+                'records_are_featured',
                 'elements_are_html',
             ),
             'default_values',
@@ -261,7 +311,7 @@ class CsvImport_Form_Main extends Omeka_Form
         unset($values['double space']);
         unset($values['empty']);
         $this->addElement('select', 'column_delimiter_name', array(
-            'label' => __('Choose column delimiter'),
+            'label' => __('Column delimiter'),
             'description'=> __('A single character that will be used to separate columns in the file (the previously used "%s" by default).', $humanDelimiterText),
             'multiOptions' => $values,
             'value' => $delimiterCurrent,
@@ -299,7 +349,7 @@ class CsvImport_Form_Main extends Omeka_Form
             : $enclosure;
 
         $this->addElement('select', 'enclosure_name', array(
-            'label' => __('Choose Enclosure'),
+            'label' => __('Enclosure'),
             'description' => __('A zero or single character that will be used to separate columns '
                 . 'clearly. It allows to use the column delimiter as a character in a field. By default, '
                 . 'the quotation mark « " » is used. Enclosure can be omitted in the csv file.'),
@@ -345,7 +395,7 @@ class CsvImport_Form_Main extends Omeka_Form
         // First, a list for special characters.
         $values = $this->_getDelimitersMenu();
         $this->addElement('select', 'element_delimiter_name', array(
-            'label' => __('Choose element delimiter'),
+            'label' => __('Element delimiter'),
             'description' => __('This delimiter will be used to separate metadata elements within a cell (the previously used "%s" by default).', $humanDelimiterText) . '<br />'
                 . __('If the delimiter is empty, then the whole text will be used.') . '<br />'
                 . ' ' . __('To use more than one character is allowed.'),
@@ -379,7 +429,7 @@ class CsvImport_Form_Main extends Omeka_Form
         // First, a list for special characters.
         $values = $this->_getDelimitersMenu();
         $this->addElement('select', 'tag_delimiter_name', array(
-            'label' => __('Choose tag delimiter'),
+            'label' => __('Tag delimiter'),
             'description' => __('This delimiter will be used to separate tags within a cell (the previously used "%s" by default).', $humanDelimiterText) . '<br />'
                 . __('If the delimiter is empty, then the whole text will be used.') . '<br />'
                 . ' ' . __('To use more than one character is allowed.'),
@@ -413,7 +463,7 @@ class CsvImport_Form_Main extends Omeka_Form
         // First, a list for special characters.
         $values = $this->_getDelimitersMenu();
         $this->addElement('select', 'file_delimiter_name', array(
-            'label' => __('Choose file delimiter'),
+            'label' => __('File delimiter'),
             'description' => __('This delimiter will be used to separate file paths or URLs within a cell (the previously used "%s" by default).', $humanDelimiterText) . '<br />'
                 . __('If the delimiter is empty, then the whole text will be used as the file path or URL.') . '<br />'
                 . ' ' . __('To use more than one character is allowed.'),
@@ -606,5 +656,30 @@ class CsvImport_Form_Main extends Omeka_Form
         }
 
         return new Zend_Measure_Binary($matches[1], $sizeType);
+    }
+
+    /**
+     * Return the element from an identifier.
+     *
+     * @return Element|boolean
+     */
+    private function _getElementFromIdentifierField($identifierField)
+    {
+        if (strlen($identifierField) > 0) {
+            if ($parts = explode(
+                    CsvImport_ColumnMap_MixElement::DEFAULT_COLUMN_NAME_DELIMITER,
+                    $identifierField)
+                ) {
+                if (count($parts) == 2) {
+                    $elementSetName = trim($parts[0]);
+                    $elementName = trim($parts[1]);
+                    $element = get_db()->getTable('Element')
+                        ->findByElementSetNameAndElementName($elementSetName, $elementName);
+                    if ($element) {
+                        return $element;
+                    }
+                }
+            }
+        }
     }
 }
