@@ -848,6 +848,30 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
         $record = $this->_getRecordByIdentifier($identifier, $recordType, $identifierField);
 
+        // Another way to find a file.
+        if (empty($record) && $recordType == 'File') {
+            $file = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_FILE);
+            if (!empty($file) && count($file) == 1) {
+                $identifierField = 'original filename';
+                $identifier = $file;
+                $record = $this->_getRecordByIdentifier($identifier, $recordType, $identifierField);
+            }
+        }
+
+        // Manage an exception when a file is added to an item: action can be
+        // "Add" for the item, but if there is no file, the file is to be created.
+        if ($recordType == 'File'
+                && empty($record)
+                && !in_array($action, array(
+                    CsvImport_ColumnMap_Action::ACTION_UPDATE_ELSE_CREATE,
+                    CsvImport_ColumnMap_Action::ACTION_CREATE,
+            ))) {
+            $item = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_ITEM);
+            if (!empty($item)) {
+                $action = CsvImport_ColumnMap_Action::ACTION_CREATE;
+            }
+        }
+
         // In case there is no identifier or record, the only available action
         // is Create. Else all actions are available.
         if (empty($identifier) || empty($record)) {
@@ -973,6 +997,27 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
         $recordMetadata = $this->_getItemMetadataFromMappedRow();
 
+        // Create collection if needed.
+        if ($this->_defaultValues['createCollections']
+                && !empty($this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION))
+                && empty($recordMetadata[Builder_Item::COLLECTION_ID])
+            ) {
+            $collection = $this->_createRecordFromIdentifier(
+                $this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION),
+                'Collection',
+                $this->_defaultValues['IdentifierField']);
+            if ($collection) {
+                $recordMetadata[Builder_Item::COLLECTION_ID] = $collection->id;
+            }
+        }
+
+        if (empty($recordMetadata[Builder_Item::ITEM_TYPE_ID])) {
+            unset($recordMetadata[Builder_Item::ITEM_TYPE_ID]);
+        }
+        if (empty($recordMetadata[Builder_Item::ITEM_TYPE_NAME])) {
+            unset($recordMetadata[Builder_Item::ITEM_TYPE_NAME]);
+        }
+
         $elementTexts = $map[CsvImport_ColumnMap::TYPE_ELEMENT];
         // Keep only non empty fields to avoid removing them (allow update).
         $elementTexts = array_values(array_filter($elementTexts, 'self::_removeEmptyElement'));
@@ -983,7 +1028,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         // Empty fields should not be removed. Fields are not trimmed.
 
         try {
-            $item = $this->_insert_item($recordMetadata, $elementTexts, array(), $extraData);
+            $record = $this->_insert_item($recordMetadata, $elementTexts, array(), $extraData);
         } catch (Omeka_Validator_Exception $e) {
             $this->_log($e, Zend_Log::ERR);
             return false;
@@ -994,7 +1039,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
         $fileUrls = $map[CsvImport_ColumnMap::TYPE_FILE];
         // Check error.
-        if (!$this->_attachFilesToItem($item, $fileUrls)) {
+        if (!$this->_attachFilesToItem($record, $fileUrls)) {
             return false;
         }
 
@@ -1013,8 +1058,8 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
                 $identifier = '';
         }
         // Makes it easy to unimport the record later.
-        $this->_recordImportedRecord('Item', $item->id, $identifier);
-        return $item;
+        $this->_recordImportedRecord('Item', $record->id, $identifier);
+        return $record;
     }
 
     /**
@@ -1032,13 +1077,13 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         if ($this->format == 'Manage') {
             // Check if the file url is present.
             $fileUrl = $map[CsvImport_ColumnMap::TYPE_FILE];
-            if (empty($fileUrl)) {
-                $msg = __('You should give the path or the url of the file to import.');
+            if (count($fileUrl) > 1) {
+                $msg = __('A file can have only one url or path.');
                 $this->_log($msg, Zend_Log::ERR);
                 return false;
             }
-            elseif (count($fileUrl) > 1) {
-                $msg = __('A file can have only one url or path.');
+            if (empty($fileUrl)) {
+                $msg = __('You should give the path or the url of the file to import.');
                 $this->_log($msg, Zend_Log::ERR);
                 return false;
             }
@@ -1046,6 +1091,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
             $itemIdentifier = $map[CsvImport_ColumnMap::TYPE_ITEM];
             $item = $this->_getRecordByIdentifier($itemIdentifier, 'Item', $this->_defaultValues['IdentifierField']);
+
             // Create item if it doesn't exist.
             if (empty($item)) {
                 if (!empty($itemIdentifier)) {
@@ -1169,7 +1215,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         // Empty fields should not be removed. Fields are not trimmed.
 
         try {
-            $item = $this->_insert_collection($recordMetadata, $elementTexts, $extraData);
+            $record = $this->_insert_collection($recordMetadata, $elementTexts, $extraData);
         } catch (Omeka_Validator_Exception $e) {
             $this->_log($e, Zend_Log::ERR);
             return false;
@@ -1290,6 +1336,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     protected function _getItemMetadataFromMappedRow()
     {
         $map = &$this->_currentMap;
+        $recordMetadata = array();
 
         // TODO Check item type (can be a id or a name).
         $itemType = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_ITEM_TYPE);
@@ -1297,24 +1344,21 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         $builderItemType = is_numeric($itemType)
             ? Builder_Item::ITEM_TYPE_ID
             : Builder_Item::ITEM_TYPE_NAME;
+        $itemType = $itemType ?: null;
 
         // Check collection, if any.
         $collectionId = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION);
-        if ($this->format == 'Manage') {
+        if (!empty($collectionId) && $this->format == 'Manage') {
             $collection = $this->_getRecordByIdentifier($collectionId, 'Collection', $this->_defaultValues['IdentifierField']);
-            if (empty($collection)) {
-                $collection = $this->_createRecordFromIdentifier($collectionId, 'Collection', $this->_defaultValues['IdentifierField']);
-            }
-            $collectionId = $collection->id;
+            $collectionId = $collection ? $collection->id : null;
         }
         // Collection should be null, not 0 or "".
-        $collectionId = $collectionId ?: null;
+        else {
+            $collectionId = $collectionId ?: null;
+        }
 
         // Set values. Default and empty are managed directly in column map.
-        $recordMetadata = array();
-        if (!empty($itemType)) {
-            $recordMetadata[$builderItemType] = $itemType;
-        }
+        $recordMetadata[$builderItemType] = $itemType;
         $recordMetadata[Builder_Item::COLLECTION_ID] = $collectionId;
         $recordMetadata[Builder_Item::IS_PUBLIC] =
             $this->_getMappedValue(CsvImport_ColumnMap::TYPE_PUBLIC);
@@ -1394,18 +1438,69 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         // To reset keys is needed to avoid bug when there is no DC Title.
         $elementTexts = array_values($elementTexts);
 
+        // Update is different for each record type.
         switch (get_class($record)) {
             case 'Item':
                 $recordMetadata = $this->_getItemMetadataFromMappedRow();
+
+                // Create collection if needed.
+                if ($this->_defaultValues['createCollections']
+                        && !empty($this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION))
+                        && empty($recordMetadata[Builder_Item::COLLECTION_ID])
+                    ) {
+                    $collection = $this->_createRecordFromIdentifier($collectionId, 'Collection', $this->_defaultValues['IdentifierField']);
+                    if ($collection) {
+                        $recordMetadata[Builder_Item::COLLECTION_ID] = $collection->id;
+                    }
+                }
+
+                // Update specific data of the item.
+                switch ($action) {
+                    case CsvImport_ColumnMap_Action::ACTION_UPDATE:
+                        if (empty($recordMetadata[Builder_Item::ITEM_TYPE_ID])
+                               || empty($recordMetadata[Builder_Item::ITEM_TYPE_NAME])
+                            ) {
+                            // TODO Currently, item type cannot be reset.
+                            // $recordMetadata[Builder_Item::ITEM_TYPE_ID] = null;
+                            unset($recordMetadata[Builder_Item::ITEM_TYPE_ID]);
+                            unset($recordMetadata[Builder_Item::ITEM_TYPE_NAME]);
+                        }
+                        break;
+
+                    case CsvImport_ColumnMap_Action::ACTION_ADD:
+                    case  CsvImport_ColumnMap_Action::ACTION_REPLACE:
+                        if (empty($recordMetadata[Builder_Item::COLLECTION_ID])) {
+                            $recordMetadata[Builder_Item::COLLECTION_ID] = $record->collection_id;
+                        }
+                        if (empty($recordMetadata[Builder_Item::ITEM_TYPE_ID])) {
+                            $recordMetadata[Builder_Item::ITEM_TYPE_ID] = $record->item_type_id;
+                        }
+                        if (empty($recordMetadata[Builder_Item::ITEM_TYPE_NAME])) {
+                            if (!empty($record->item_type_id)) {
+                                $recordMetadata[Builder_Item::ITEM_TYPE_ID] = $record->item_type_id;
+                            }
+                            unset($recordMetadata[Builder_Item::ITEM_TYPE_NAME]);
+                        }
+                        break;
+                }
+
+                if (empty($recordMetadata[Builder_Item::TAGS])) {
+                    unset($recordMetadata[Builder_Item::TAGS]);
+                }
+
                 $record = update_item($record, $recordMetadata, $elementTexts);
                 break;
+
             case 'File':
                 $record->addElementTextsByArray($elementTexts);
+                $record->save();
                 break;
+
             case 'Collection':
                 $recordMetadata = $this->_getCollectionMetadataFromMappedRow();
                 $record = update_collection($record, $recordMetadata, $elementTexts);
                 break;
+
             default:
                 return false;
         }
@@ -1629,7 +1724,8 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
                 $record = get_db()->getTable('File')->findBySql($field . ' = ?', array($identifier), true);
             }
         }
-        // Record identifier is an existing element text.
+        // Record identifier is an existing element text or an internal
+        // identifier of the current file.
         else {
             $db = get_db();
 
@@ -1654,9 +1750,31 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
                     LIMIT 1
                 ";
                 $result = $db->fetchRow($sql, $bind);
-                if (!empty($result)) {
-                    $record = get_record_by_id($result['record_type'], $result['record_id']);
+            }
+
+            // Check if this is an internal identifier of the current
+            // import, that is already imported.
+            // if (empty($element) || empty($result)) {
+            else {
+                $bind = array();
+                $bind['import_id'] = $this->id;
+                $bind['identifier'] = $identifier;
+                if (in_array($recordType, array('Collection', 'Item', 'File'))) {
+                    $bind['record_type'] = $recordType;
                 }
+                $csvImportedRecords = get_db()->getTable('CsvImport_ImportedRecord')
+                    ->findBy($bind, 1);
+                if (!empty($csvImportedRecords)) {
+                    $csvImportedRecord = reset($csvImportedRecords);
+                    $result = array(
+                        'record_type' => $csvImportedRecord->record_type,
+                        'record_id' => $csvImportedRecord->record_id,
+                    );
+                }
+            }
+
+            if (!empty($result)) {
+                $record = get_record_by_id($result['record_type'], $result['record_id']);
             }
         }
 
@@ -1687,17 +1805,20 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         }
 
         $element = $this->_getElementFromIdentifierField($identifierField);
-        if (empty($element)) {
-            return false;
-        }
 
         try {
             $record = new $recordType;
-            $record->addElementTextsByArray(array(
-                array('element_id' => $element->id,
-                    'text' => $identifier,
-                    'html' => false),
-            ));
+            // If the identifier is internal (just for the current csv file),
+            // there is no element, but the identifier can be saved in the
+            // current import table.
+            if ($element) {
+                $record->addElementTextsByArray(array(
+                    array(
+                        'element_id' => $element->id,
+                        'text' => $identifier,
+                        'html' => false),
+                ));
+            }
             $record->save();
         } catch (Exception $e) {
             return false;

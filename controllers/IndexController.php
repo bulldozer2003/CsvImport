@@ -169,7 +169,12 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
                 $parameters += array(
                     'action' => $this->session->action,
                     'identifierField' => $this->session->identifierField,
-                    'createCollections' => $this->session->createCollections,
+                    'createCollections' => true,
+                );
+                break;
+            case 'Report' :
+                $parameters += array(
+                    'createCollections' => false,
                 );
                 break;
             case 'Mix':
@@ -686,6 +691,14 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
             case 'Manage':
                 $defaultValues[CsvImport_ColumnMap::TYPE_ACTION] = $this->session->action;
                 $defaultValues[CsvImport_ColumnMap::TYPE_IDENTIFIER_FIELD] = $this->session->identifierField;
+                $defaultValues['createCollections'] = true;
+                break;
+            case 'Report':
+                $defaultValues['createCollections'] = false;
+                break;
+            case 'Mix':
+            case 'Update':
+                $defaultValues['createCollections'] = $this->session->createCollections;
                 break;
         }
 

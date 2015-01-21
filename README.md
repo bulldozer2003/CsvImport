@@ -238,8 +238,10 @@ Formats
     - `Identifier`
     All records should have a unique identifier. According to `IdentifierField`
     column or the default parameter, it can be an internal id or any other
-    metadata field. When the identifier field is a metadata, this column is
-    optional as long as this metadata has got a column.
+    metadata field. It can be a specific identifier of the current file too, but
+    in that case, the identifier is available only for the current import.
+    When the identifier field is a metadata, this column is optional as long as
+    this metadata has got a column.
     If it is empty and identifier is not set in a metadata column, the only
     available action is "Create". If the record doesn't exist when updating, the
     row will be skipped.
@@ -336,9 +338,6 @@ Formats
     Because this format updates and overrides existing data if any, it cannot be
     undone, but you can update data muliple times.
 
-    Note: To update the collection, the item type, the public and featured
-    parameters, and the tags, you should use the `Manage` mode.
-
 
 Notes
 -----
@@ -354,6 +353,8 @@ Notes
   automatic import, but it allows to map some columns with more than one field.
   For example, a column of tags can be mapped as a Dublin Core Subject too.
   Furthermore, it allows too to set each element as an html one or not.
+  - Item type can be changed, but not unset.
+  - Tags can be added to an item, but not removed.
 
 * Characters encoding
 

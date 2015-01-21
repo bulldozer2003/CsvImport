@@ -33,7 +33,7 @@ class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
     {
         parent::__construct($columnName);
         $this->_type = CsvImport_ColumnMap::TYPE_COLLECTION;
-        $this->_collectionId = $collectionId;
+        $this->_collectionId = (integer) $collectionId;
         $this->_createCollection = (boolean) $createCollection;
         $this->_direct = $direct;
     }
