@@ -68,16 +68,16 @@ Omeka.CsvImport = {};
         var fieldsManageNo = $('div.field').has('#create_collections, #automap_columns');
         var fieldsReport = $('div.field').has('#elements_are_html');
         var fieldsReportNo = $('div.field').has('#action, #identifier_field, #item_type_id, #collection_id, #create_collections, #records_are_public, #records_are_featured, #contains_extra_data, #automap_columns, #column_delimiter_name, #column_delimiter, #enclosure_name, #enclosure, #element_delimiter_name, #element_delimiter, #tag_delimiter_name, #tag_delimiter, #file_delimiter_name, #file_delimiter');
-        var fieldsItem = $('div.field').has('#item_type_id, #collection_id, #create_collections, #records_are_public, #records_are_featured, #automap_columns, #column_delimiter_name, #column_delimiter, #element_delimiter_name, #element_delimiter, #enclosure_name, #enclosure, #tag_delimiter_name, #tag_delimiter, #file_delimiter_name, #file_delimiter');
+        var fieldsItem = $('div.field').has('#item_type_id, #collection_id, #create_collections, #records_are_public, #records_are_featured, #automap_columns, #column_delimiter_name, #column_delimiter, #enclosure_name, #enclosure, #element_delimiter_name, #element_delimiter, #tag_delimiter_name, #tag_delimiter, #file_delimiter_name, #file_delimiter');
         var fieldsItemNo = $('div.field').has('#action, #identifier_field, #elements_are_html, #contains_extra_data');
         // Deprecated.
-        var fieldsFile = $('div.field').has('#automap_columns, #column_delimiter_name, #column_delimiter, #element_delimiter_name, #element_delimiter, #enclosure_name, #enclosure, #tag_delimiter_name, #tag_delimiter');
+        var fieldsFile = $('div.field').has('#automap_columns, #column_delimiter_name, #column_delimiter, #enclosure_name, #enclosure, #element_delimiter_name, #element_delimiter, #tag_delimiter_name, #tag_delimiter');
         var fieldsFileNo = $('div.field').has('#action, #identifier_field, #item_type_id, #collection_id, #create_collections, #records_are_public, #records_are_featured, #elements_are_html, #contains_extra_data, #file_delimiter_name, #file_delimiter');
         var fieldsMix = $('div.field').has('#item_type_id, #collection_id, #create_collections, #records_are_public, #records_are_featured, #elements_are_html, #contains_extra_data, #column_delimiter_name, #column_delimiter, #enclosure_name, #enclosure, #element_delimiter_name, #element_delimiter, #tag_delimiter_name, #tag_delimiter, #file_delimiter_name, #file_delimiter');
         var fieldsMixNo = $('div.field').has('#action, #identifier_field, #automap_columns');
-        var fieldsUpdate = $('div.field').has('#create_collections, #elements_are_html, #contains_extra_data, #column_delimiter_name, #column_delimiter, #enclosure_name, #enclosure, #element_delimiter_name, #element_delimiter, #tag_delimiter_name, #tag_delimiter, #file_delimiter_name, #file_delimiter');
-        var fieldsUpdateNo = $('div.field').has('#action, #identifier_field, #item_type_id, #collection_id, #records_are_public, #records_are_featured, #automap_columns');
-        var fieldsAll = $('div.field').has('#action, #identifier_field, #item_type_id, #collection_id, #create_collections, #records_are_public, #records_are_featured, #elements_are_html, #contains_extra_data, #automap_columns, #column_delimiter_name, #column_delimiter, #element_delimiter_name, #element_delimiter, #enclosure_name, #enclosure, #tag_delimiter_name, #tag_delimiter, #file_delimiter_name, #file_delimiter');
+        var fieldsUpdate = fieldsMix;
+        var fieldsUpdateNo = fieldsMixNo;
+        var fieldsAll = $('div.field').has('#action, #identifier_field, #item_type_id, #collection_id, #create_collections, #records_are_public, #records_are_featured, #elements_are_html, #contains_extra_data, #automap_columns, #column_delimiter_name, #column_delimiter, #enclosure_name, #enclosure, #element_delimiter_name, #element_delimiter, #tag_delimiter_name, #tag_delimiter, #file_delimiter_name, #file_delimiter');
         var fieldSets =  $('#fieldset-csv_format, #fieldset-default_values, #fieldset-import_features');
         if ($('#format-Manage').is(':checked')) {
             fieldSets.slideDown();

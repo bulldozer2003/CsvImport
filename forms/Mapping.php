@@ -74,26 +74,25 @@ class CsvImport_Form_Mapping extends Omeka_Form
                     'ItemType' => 'Item type',
                     'Public' => 'Public',
                     'Featured' => 'Featured',
+                    // Specific to "Mix" format.
                     'sourceItemId' => 'Source Item Id',
                 ));
                 break;
             case 'Update':
                 $elementsByElementSetName = $this->_getElementPairs(true);
                 $special = label_table_options(array(
-                    // TODO Upgrade to allow these changes.
-                    // 'Tags' => 'Tags',
-                    // 'Collection' => 'Collection',
+                    'Tags' => 'Tags',
+                    'Collection' => 'Collection',
                     'fileUrl' => 'Zero or one file',
                     'File' => 'Files',
                     'RecordType' => 'Record type',
+                    'ItemType' => 'Item type',
+                    'Public' => 'Public',
+                    'Featured' => 'Featured',
                     // Specific to "Update" format.
                     'updateMode' => 'Update mode',
                     'updateIdentifier' => 'Update identifier',
                     'recordIdentifier' => 'Record identifier',
-                    // TODO Upgrade to allow these changes.
-                    // 'itemType' => 'Item type',
-                    // 'Public' => 'Public',
-                    // 'Featured' => 'Featured',
                 ));
                 break;
             default:
