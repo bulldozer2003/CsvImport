@@ -73,7 +73,20 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
 
     protected function _initializeMixins()
     {
+        $this->_mixins[] = new Mixin_Owner($this);
         $this->_mixins[] = new Mixin_Timestamp($this, 'added', null);
+    }
+
+    /**
+     * Get the user object.
+     *
+     * @return User
+     */
+    public function getOwner()
+    {
+        if ($this->owner_id) {
+            return $this->getTable('User')->find($this->owner_id);
+        }
     }
 
     /**

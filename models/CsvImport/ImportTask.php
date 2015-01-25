@@ -28,6 +28,9 @@ class CsvImport_ImportTask extends Omeka_Job_AbstractJob
      */
     public function perform()
     {
+        // Set current user for this long running job.
+        Zend_Registry::get('bootstrap')->bootstrap('Acl');
+
         if ($this->_memoryLimit) {
             ini_set('memory_limit', $this->_memoryLimit);
         }
