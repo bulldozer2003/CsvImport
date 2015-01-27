@@ -89,7 +89,7 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
             `import_id` int(10) unsigned NOT NULL,
             `record_type` varchar(50) collate utf8_unicode_ci NOT NULL,
             `record_id` int(10) unsigned NOT NULL,
-            `identifier` varchar(255) collate utf8_unicode_ci,
+            `identifier` varchar(255) collate utf8_unicode_ci NOT NULL,
             PRIMARY KEY  (`id`),
             KEY (`import_id`),
             KEY `record_type_record_id` (`record_type`, `record_id`),

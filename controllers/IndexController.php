@@ -888,16 +888,9 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
         $jobDispatcher = Zend_Registry::get('job_dispatcher');
         $jobDispatcher->setQueueName(CsvImport_ImportTask::QUEUE_NAME);
         try {
-            $jobDispatcher->sendLongRunning('CsvImport_ImportTask',
-                array(
-                    'importId' => $csvImport->id,
-                    'memoryLimit' => @$csvConfig['memoryLimit'],
-                    'batchSize' => @$csvConfig['batchSize'],
-                    'method' => $method,
-                )
-            );
+            $jobDispatcher->sendLongRunning('CsvImport_ImportTask', $options);
         } catch (Exception $e) {
-            $csvImport->setStatus(CsvImport_Import::OTHER_ERROR);
+            $csvImport->setStatus(CsvImport_Import::STATUS_OTHER_ERROR);
             throw $e;
         }
     }

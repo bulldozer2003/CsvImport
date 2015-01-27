@@ -223,7 +223,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
     }
 
     /**
-     * Executes before the record is deleted.
+     * Executes before the record is saved.
      *
      * @param array $args
      */
@@ -1855,7 +1855,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
             'import_id' => $this->id,
             'record_type' => $recordType,
             'record_id' => $recordId,
-            'identifier' => $identifier,
+            'identifier' => $identifier ?: '',
         ));
         $csvImportedRecord->save();
         $this->_importedCount++;
