@@ -6,7 +6,7 @@
  * @license http://www.gnu.org/licenses/gpl-3.0.txt GNU GPLv3
  * @package CsvImport
  */
-class CsvImport_Import extends Omeka_Record_AbstractRecord
+class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_Resource_Interface
 {
     const UNDO_IMPORT_RECORD_LIMIT_PER_QUERY = 50;
 
@@ -2098,5 +2098,17 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord
         }
 
         $record->setArray(array('_postData' => $post));
+    }
+
+    /**
+     * Declare the representative model as relating to the record ACL resource.
+     *
+     * Required by Zend_Acl_Resource_Interface.
+     *
+     * @return string
+     */
+    public function getResourceId()
+    {
+        return 'CsvImport_Imports';
     }
 }
