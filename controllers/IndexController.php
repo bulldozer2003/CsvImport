@@ -891,6 +891,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
             $jobDispatcher->sendLongRunning('CsvImport_ImportTask', $options);
         } catch (Exception $e) {
             $csvImport->setStatus(CsvImport_Import::STATUS_OTHER_ERROR);
+            $csvImport->save();
             throw $e;
         }
     }
