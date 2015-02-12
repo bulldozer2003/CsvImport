@@ -1108,7 +1108,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
             // Create item if it doesn't exist.
             if (empty($item)) {
                 if (!empty($itemIdentifier)) {
-                    $item = $this->_createRecordFromIdentifier($identifier, 'Item', $this->_defaultValues['IdentifierField']);
+                    $item = $this->_createRecordFromIdentifier($itemIdentifier, 'Item', $this->_defaultValues['IdentifierField']);
                 }
                 if (empty($item)) {
                     $msg = __('No item with the identifier "%s" for the file "%s".', $itemIdentifier, $fileUrl);
