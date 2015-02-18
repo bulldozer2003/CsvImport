@@ -209,7 +209,7 @@ They use free images of [Wikipedia], so import speed depends on the connection.
     one by one, with a different action for each row.
     To try them, you may install [Geolocation] and to check `Manage Records`
     with `tabulation` as column delimiter, no enclosure, `|` as element, file,
-    and tag delimiters, and `Dublin Core:Identifier` as field field identifier.
+    and tag delimiters, and `Dublin Core:Identifier` as the field identifier.
     If you import them manually, the special value "Identifier" should be set
     too for the Dublin Core:Identifier, so this column will be used as
     identifier and as a metadata. The third should be imported after the first

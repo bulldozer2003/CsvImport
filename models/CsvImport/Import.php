@@ -442,7 +442,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
         // The import or undo import loop was prematurely stopped
         $logMsg = "Stopped import or undo import due to error";
         if ($error = error_get_last()) {
-            $logMsg .= ": " . $error['message'];
+            $logMsg .= sprintf('[file %s, line %d]: %s', $error['file'], $error['line'], $error['message']);
         } else {
             $logMsg .= '.';
         }
