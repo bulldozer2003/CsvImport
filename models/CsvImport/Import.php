@@ -1011,7 +1011,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
         $recordMetadata = $this->_getItemMetadataFromMappedRow();
 
         // Create collection if needed.
-        if ($this->_defaultValues['createCollections']
+        if (!empty($this->_defaultValues['createCollections'])
                 && !empty($this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION))
                 && empty($recordMetadata[Builder_Item::COLLECTION_ID])
             ) {
@@ -1457,7 +1457,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
                 $recordMetadata = $this->_getItemMetadataFromMappedRow();
 
                 // Create collection if needed.
-                if ($this->_defaultValues['createCollections']
+                if (!empty($this->_defaultValues['createCollections'])
                         && !empty($this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION))
                         && empty($recordMetadata[Builder_Item::COLLECTION_ID])
                     ) {

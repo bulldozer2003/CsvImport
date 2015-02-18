@@ -163,6 +163,8 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
             'isPublic' => $this->session->recordsArePublic,
             'isFeatured' => $this->session->recordsAreFeatured,
             'elementsAreHtml' => $this->session->elementsAreHtml,
+            // Option "Create collections"" is false except below.
+            'createCollections' => false,
         );
         switch ($this->session->format) {
             case 'Manage':
@@ -170,11 +172,6 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
                     'action' => $this->session->action,
                     'identifierField' => $this->session->identifierField,
                     'createCollections' => true,
-                );
-                break;
-            case 'Report' :
-                $parameters += array(
-                    'createCollections' => false,
                 );
                 break;
             case 'Mix':
@@ -700,6 +697,8 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
             case 'Update':
                 $defaultValues['createCollections'] = $this->session->createCollections;
                 break;
+            default:
+                $defaultValues['createCollections'] = false;
         }
 
         $this->session->defaultValues = $defaultValues;
