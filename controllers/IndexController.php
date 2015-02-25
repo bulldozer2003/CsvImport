@@ -570,7 +570,7 @@ class CsvImport_IndexController extends Omeka_Controller_AbstractActionControlle
                     $columnMaps[] = new CsvImport_ColumnMap_Collection($heading,
                         $collectionId,
                         $createCollections,
-                        $format != 'Manage');
+                        $format == 'Manage');
                     break;
                 case 'Public':
                 // Used by Csv Report.

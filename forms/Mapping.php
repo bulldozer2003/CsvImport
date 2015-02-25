@@ -591,7 +591,7 @@ class CsvImport_Form_Mapping extends Omeka_Form
                 $columnMap[] = new CsvImport_ColumnMap_Collection($columnName,
                     $this->_collectionId,
                     $this->_createCollections,
-                    $this->_format != 'Manage');
+                    $this->_format == 'Manage');
                 break;
             case 'Public':
                 $columnMap[] = new CsvImport_ColumnMap_Public($columnName, $this->_isPublic);
