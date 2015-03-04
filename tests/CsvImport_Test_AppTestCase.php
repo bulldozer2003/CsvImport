@@ -32,8 +32,8 @@ class CsvImport_Test_AppTestCase extends Omeka_Test_AppTestCase
     protected function _deleteAllImports()
     {
         $imports = $this->db->getTable('CsvImport_Import')->findAll();
-        foreach($imports as $imports) {
-            $imports->delete();
+        foreach($imports as $import) {
+            $import->delete();
         }
         $imports = $this->db->getTable('CsvImport_Import')->findAll();
         $this->assertEquals(0, count($imports), 'There should be no imports.');
