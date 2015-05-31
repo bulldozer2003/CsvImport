@@ -2105,6 +2105,10 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
             return;
         }
 
+        if (!isset($post['Elements'])) {
+            $post['Elements'] = array();
+        }
+
         // Default used in Omeka_Record_Builder_AbstractBuilder::setPostData().
         $post = new ArrayObject($post);
         if (array_key_exists('id', $post)) {
