@@ -1164,6 +1164,11 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
         if (!isset($parsedFileUrl['scheme']) || $parsedFileUrl['scheme'] == 'file') {
             $transferStrategy = 'Filesystem';
             $fileUrl = $parsedFileUrl['path'];
+            if (!$this->_allowLocalPath($fileUrl)) {
+                $msg = __('Local paths are not allowed by the administrator (%s).', $fileUrl);
+                $this->_log($msg, Zend_Log::ERR);
+                return false;
+            }
         }
         else {
             $transferStrategy = 'Url';
@@ -1554,6 +1559,15 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
             if (!isset($parsedFileUrl['scheme']) || $parsedFileUrl['scheme'] == 'file') {
                 $transferStrategy = 'Filesystem';
                 $fileUrl = $parsedFileUrl['path'];
+                if (!$this->_allowLocalPath($fileUrl)) {
+                    $msg = __('Local paths are not allowed by the administrator (%s).', $fileUrl);
+                    $this->_log($msg, Zend_Log::ERR);
+                    if ($itemDelete) {
+                        $item->delete();
+                    }
+                    release_object($item);
+                    return false;
+                }
             }
             else {
                 $transferStrategy = 'Url';
@@ -2098,6 +2112,38 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
         }
 
         $record->setArray(array('_postData' => $post));
+    }
+
+    /**
+     * Check if a local file is importable.
+     *
+     * @param $fileUrl
+     * @return boolean
+     */
+    protected function _allowLocalPath($fileUrl)
+    {
+        $settings = Zend_Registry::get('csv_import');
+
+        // Check the security setting.
+        if ($settings->local_folders->allow !== '1') {
+            return false;
+        }
+
+        // Check the base path.
+        $path = $settings->local_folders->base_path;
+        $realpath = realpath($path);
+        if ($path !== $realpath || strlen($realpath) <= 2) {
+            return false;
+        }
+
+        // Check the uri.
+        if (strpos(realpath($fileUrl), $realpath) !== 0
+                || !in_array(substr($fileUrl, strlen($realpath), 1), array('', '/'))
+            ) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

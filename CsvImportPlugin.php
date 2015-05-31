@@ -169,7 +169,7 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
             $db->query($sql);
         }
 
-        if (version_compare($oldVersion, '2.1.1-full', '<=')) {
+        if (version_compare($oldVersion, '2.1.1-full', '<')) {
             // Move all default values into a specific field.
             $sql = "
                 ALTER TABLE `{$db->prefix}csv_import_imports`
@@ -252,6 +252,15 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
     public function hookInitialize()
     {
         add_translation_source(dirname(__FILE__) . '/languages');
+
+        // Get the backend settings from the security.ini file.
+        // This simplifies tests too (use of local paths instead of urls).
+        // TODO Probably a better location to set this.
+        if (!Zend_Registry::isRegistered('csv_import')) {
+            $iniFile = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'security.ini';
+            $settings = new Zend_Config_Ini($iniFile, 'csv-import');
+            Zend_Registry::set('csv_import', $settings);
+        }
     }
 
     /**

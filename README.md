@@ -27,6 +27,9 @@ Uncompress files and rename plugin folder "CsvImport".
 
 Then install it like any other Omeka plugin and follow the config instructions.
 
+If you want to use local files inside the file system, the allowed base path or
+a parent should be defined before in the file "security.ini" of the plugin.
+
 Set the proper settings in config.ini like so:
 
 ```
@@ -91,6 +94,12 @@ jobs.dispatcher.longRunning = "Omeka_Job_Dispatcher_Adapter_Synchronous"
 
 Note that this change may limit the number of lines imported by job. If so, you
 can increase the time limit for process in the server or php configuration.
+
+_Note about local paths_
+
+For security reasons, to import files from local file system is forbidden.
+Nevertheless, it can be allowed for a specific path. This allowed base path or a
+parent should be defined in the file "security.ini" of the plugin.
 
 
 Examples
@@ -510,7 +519,7 @@ Copyright
 [Wikipedia]: https://www.wikipedia.org
 [Geolocation]: http://omeka.org/add-ons/plugins/geolocation
 [Csv Import issues]: http://omeka.org/forums/forum/plugins
-[fork issues]: https://github.com/Daniel-KM/CsvImport/Issues
+[fork issues]: https://github.com/Daniel-KM/CsvImport/issues
 [GNU/GPL]: https://www.gnu.org/licenses/gpl-3.0.html
 [Center for History & New Media]: http://chnm.gmu.edu
 [Daniel-KM]: https://github.com/Daniel-KM "Daniel Berthereau"
