@@ -517,8 +517,8 @@ Copyright
 [Csv Import]: https://github.com/omeka/plugin-CsvImport
 [Xml Import]: https://github.com/Daniel-KM/XmlImport
 [Wikipedia]: https://www.wikipedia.org
-[Geolocation]: http://omeka.org/add-ons/plugins/geolocation
-[Csv Import issues]: http://omeka.org/forums/forum/plugins
+[Geolocation]: https://omeka.org/add-ons/plugins/geolocation
+[Csv Import issues]: https://omeka.org/forums/forum/plugins
 [fork issues]: https://github.com/Daniel-KM/CsvImport/issues
 [GNU/GPL]: https://www.gnu.org/licenses/gpl-3.0.html
 [Center for History & New Media]: http://chnm.gmu.edu
