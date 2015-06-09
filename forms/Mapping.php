@@ -464,7 +464,10 @@ class CsvImport_Form_Mapping extends Omeka_Form
      */
     protected function _getMappedSpecialValue($index)
     {
-        if (!empty($this->getSubForm("row$index")->special)) {
+        $special = isset($this->getSubForm("row$index")->special)
+            ? $this->getSubForm("row$index")->special
+            : null;
+        if (!empty($special)) {
             return $this->_getRowValue($index, 'special');
         }
     }

@@ -1011,16 +1011,18 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
         $recordMetadata = $this->_getItemMetadataFromMappedRow();
 
         // Create collection if needed.
-        if (!empty($this->_defaultValues['createCollections'])
-                && !empty($this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION))
-                && empty($recordMetadata[Builder_Item::COLLECTION_ID])
-            ) {
-            $collection = $this->_createRecordFromIdentifier(
-                $this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION),
-                'Collection',
-                $this->_defaultValues['IdentifierField']);
-            if ($collection) {
-                $recordMetadata[Builder_Item::COLLECTION_ID] = $collection->id;
+        if (!empty($this->_defaultValues['createCollections'])) {
+            $collectionId = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION);
+            if (!empty($collectionId)
+                    && empty($recordMetadata[Builder_Item::COLLECTION_ID])
+                ) {
+                $collection = $this->_createRecordFromIdentifier(
+                    $collectionId,
+                    'Collection',
+                    $this->_defaultValues['IdentifierField']);
+                if ($collection) {
+                    $recordMetadata[Builder_Item::COLLECTION_ID] = $collection->id;
+                }
             }
         }
 
@@ -1462,13 +1464,18 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
                 $recordMetadata = $this->_getItemMetadataFromMappedRow();
 
                 // Create collection if needed.
-                if (!empty($this->_defaultValues['createCollections'])
-                        && !empty($this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION))
-                        && empty($recordMetadata[Builder_Item::COLLECTION_ID])
-                    ) {
-                    $collection = $this->_createRecordFromIdentifier($collectionId, 'Collection', $this->_defaultValues['IdentifierField']);
-                    if ($collection) {
-                        $recordMetadata[Builder_Item::COLLECTION_ID] = $collection->id;
+                if (!empty($this->_defaultValues['createCollections'])) {
+                    $collectionId = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_COLLECTION);
+                    if (!empty($collectionId)
+                            && empty($recordMetadata[Builder_Item::COLLECTION_ID])
+                        ) {
+                        $collection = $this->_createRecordFromIdentifier(
+                            $collectionId,
+                            'Collection',
+                            $this->_defaultValues['IdentifierField']);
+                        if ($collection) {
+                            $recordMetadata[Builder_Item::COLLECTION_ID] = $collection->id;
+                        }
                     }
                 }
 
