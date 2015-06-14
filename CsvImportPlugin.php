@@ -21,10 +21,12 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
      * @var array Hooks for the plugin.
      */
     protected $_hooks = array(
+        'initialize',
         'install',
         'uninstall',
         'upgrade',
-        'initialize',
+        'config_form',
+        'config',
         'admin_head',
         'define_acl',
     );
@@ -51,7 +53,26 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
         'csv_import_automap_columns' => TRUE,
         'csv_import_create_collections' => FALSE,
         'csv_import_extra_data' => 'manual',
+        // With roles, in particular if Guest User is installed.
+        'csv_import_allow_roles' => 'a:1:{i:0;s:5:"super";}',
     );
+
+    /**
+     * Add the translations.
+     */
+    public function hookInitialize()
+    {
+        add_translation_source(dirname(__FILE__) . '/languages');
+
+        // Get the backend settings from the security.ini file.
+        // This simplifies tests too (use of local paths instead of urls).
+        // TODO Probably a better location to set this.
+        if (!Zend_Registry::isRegistered('csv_import')) {
+            $iniFile = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'security.ini';
+            $settings = new Zend_Config_Ini($iniFile, 'csv-import');
+            Zend_Registry::set('csv_import', $settings);
+        }
+    }
 
     /**
      * Install the plugin.
@@ -97,22 +118,6 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;");
 
         $this->_installOptions();
-    }
-
-    /**
-     * Uninstall the plugin.
-     */
-    public function hookUninstall()
-    {
-        $db = $this->_db;
-
-        // Drop the tables.
-        $sql = "DROP TABLE IF EXISTS `{$db->prefix}csv_import_imports`";
-        $db->query($sql);
-        $sql = "DROP TABLE IF EXISTS `{$db->prefix}csv_import_imported_records`";
-        $db->query($sql);
-
-        $this->_uninstallOptions();
     }
 
     /**
@@ -247,37 +252,85 @@ class CsvImportPlugin extends Omeka_Plugin_AbstractPlugin
     }
 
     /**
-     * Add the translations.
+     * Uninstall the plugin.
      */
-    public function hookInitialize()
+    public function hookUninstall()
     {
-        add_translation_source(dirname(__FILE__) . '/languages');
+        $db = $this->_db;
 
-        // Get the backend settings from the security.ini file.
-        // This simplifies tests too (use of local paths instead of urls).
-        // TODO Probably a better location to set this.
-        if (!Zend_Registry::isRegistered('csv_import')) {
-            $iniFile = dirname(__FILE__) . DIRECTORY_SEPARATOR . 'security.ini';
-            $settings = new Zend_Config_Ini($iniFile, 'csv-import');
-            Zend_Registry::set('csv_import', $settings);
+        // Drop the tables.
+        $sql = "DROP TABLE IF EXISTS `{$db->prefix}csv_import_imports`";
+        $db->query($sql);
+        $sql = "DROP TABLE IF EXISTS `{$db->prefix}csv_import_imported_records`";
+        $db->query($sql);
+
+        $this->_uninstallOptions();
+    }
+
+    /**
+     * Shows plugin configuration page.
+     */
+    public function hookConfigForm($args)
+    {
+        $view = get_view();
+        echo $view->partial(
+            'plugins/csv-import-config-form.php'
+        );
+    }
+
+    /**
+     * Saves plugin configuration page.
+     *
+     * @param array Options set in the config form.
+     */
+    public function hookConfig($args)
+    {
+        $post = $args['post'];
+        foreach (array(
+                'csv_import_allow_roles',
+            ) as $posted) {
+            $post[$posted] = isset($post[$posted])
+                ? serialize($post[$posted])
+                : serialize(array());
+        }
+        foreach ($post as $key => $value) {
+            set_option($key, $value);
         }
     }
 
     /**
-     * Define the ACL.
+     * Defines the plugin's access control list.
      *
      * @param array $args
      */
     public function hookDefineAcl($args)
     {
-        $acl = $args['acl']; // get the Zend_Acl
+        $acl = $args['acl'];
+        $resource = 'CsvImport_Index';
 
-        $acl->addResource('CsvImport_Index');
-
+        // TODO This is currently needed for tests for an undetermined reason.
+        if (!$acl->has($resource)) {
+            $acl->addResource($resource);
+        }
         // Hack to disable CRUD actions.
-        $acl->deny(null, 'CsvImport_Index', array('show', 'add', 'edit', 'delete'));
-        $acl->deny('admin', 'CsvImport_Index');
-    }
+        $acl->deny(null, $resource, array('show', 'add', 'edit', 'delete'));
+        $acl->deny(null, $resource);
+
+        $roles = $acl->getRoles();
+
+        // Check that all the roles exist, in case a plugin-added role has
+        // been removed (e.g. GuestUser).
+        $allowRoles = unserialize(get_option('csv_import_allow_roles')) ?: array();
+        $allowRoles = array_intersect($roles, $allowRoles);
+        if ($allowRoles) {
+            $acl->allow($allowRoles, $resource);
+        }
+
+        $denyRoles = array_diff($roles, $allowRoles);
+        if ($denyRoles) {
+            $acl->deny($denyRoles, $resource);
+        }
+  }
 
     /**
      * Configure admin theme header.
