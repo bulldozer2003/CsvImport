@@ -1178,6 +1178,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
         }
         else {
             $transferStrategy = 'Url';
+            $fileUrl = $this->_rawUrlEncode($fileUrl);
         }
 
         // Import the file and attach it to the item.
@@ -1582,6 +1583,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
             }
             else {
                 $transferStrategy = 'Url';
+                $fileUrl = $this->_rawUrlEncode($fileUrl);
             }
 
             // Import the file and attach it to the item.
@@ -1982,6 +1984,22 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
             }
         }
         return $elementTexts;
+    }
+
+    /**
+     * Raw url encode a full url if needed.
+     *
+     * @param string $fileUrl
+     * @return string The file url.
+     */
+    private function _rawUrlEncode($url)
+    {
+        if (rawurldecode($url) == $url) {
+            $path = substr($url, strpos($url, '/'));
+            $url = substr($url, 0, strpos($url, '/'))
+                . implode('/', array_map('rawurlencode', explode('/', $path)));
+        }
+        return $url;
     }
 
     /* Functions that override Omeka ones in order to process extra data. */
