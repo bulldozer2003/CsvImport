@@ -271,6 +271,10 @@ Formats
     only when identifier is not the internal id and when the identifier is
     unique accross all records. If empty, the record type is determined
     according to other columns when possible. If not, the record is an item.
+    This column is recommended to avoid useless processing.
+
+    The column "Item" is required to identify the item to which the file is
+    attached. It contains the same identifier as above.
 
 2. `Omeka Csv Report`
 
@@ -454,6 +458,12 @@ Extra data are managed by plugins, so some differences should be noted.
     ```
     jobs.dispatcher.longRunning = "Omeka_Job_Dispatcher_Adapter_Synchronous"
     ```
+
+* Order of files
+
+In some cases, in particular when the item is saved in another process while the
+import job is still working in background, order of files can be broken. In that
+case, simply reorder them.
 
 
 Warning

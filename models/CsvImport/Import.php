@@ -795,6 +795,8 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
      */
     protected function _manageFromMappedRow()
     {
+        $map = &$this->_currentMap;
+
         $action = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_ACTION);
         // Avoid a empty choice by the user.
         if (empty($action)) {
@@ -818,7 +820,9 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
                 $recordType = 'Item';
             }
             // If there are multiple files, this is an item.
-            elseif (count($map[CsvImport_ColumnMap::TYPE_FILE]) > 1) {
+            elseif (isset($map[CsvImport_ColumnMap::TYPE_FILE])
+                     && count($map[CsvImport_ColumnMap::TYPE_FILE]) > 1
+                 ) {
                 $recordType = 'Item';
             }
             // If there is a non empty column Item, this is a file.
@@ -866,7 +870,7 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
             $file = $this->_getMappedValue(CsvImport_ColumnMap::TYPE_FILE);
             if (!empty($file) && count($file) == 1) {
                 $identifierField = 'original filename';
-                $identifier = $file;
+                $identifier = reset($file);
                 $record = $this->_getRecordByIdentifier($identifier, $recordType, $identifierField);
             }
         }
