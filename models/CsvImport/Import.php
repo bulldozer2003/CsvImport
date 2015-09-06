@@ -1689,9 +1689,11 @@ class CsvImport_Import extends Omeka_Record_AbstractRecord implements Zend_Acl_R
                 // All files should be processed, because this is an order.
                 $i = 0;
                 foreach ($fileUrls as $url) {
-                    $file = $currentFilesByUrl[$url];
-                    $file->order = ++$i;
-                    $file->save();
+                    if (isset($currentFilesByUrl[$url])) {
+                        $file = $currentFilesByUrl[$url];
+                        $file->order = ++$i;
+                        $file->save();
+                    }
                 }
                 break;
         }
