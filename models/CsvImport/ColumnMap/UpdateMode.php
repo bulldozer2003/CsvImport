@@ -12,7 +12,7 @@ class CsvImport_ColumnMap_UpdateMode extends CsvImport_ColumnMap
     const MODE_ADD = 'Add';
     const MODE_REPLACE = 'Replace';
 
-    const DEFAULT_UPDATE_MODE = self::MODE_UPDATE;
+    const DEFAULT_UPDATE_MODE = 'Update';
 
     /**
      * @param string $columnName

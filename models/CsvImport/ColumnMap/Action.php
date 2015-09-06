@@ -15,7 +15,7 @@ class CsvImport_ColumnMap_Action extends CsvImport_ColumnMap
     const ACTION_SKIP = 'Skip';
 
     const ACTION_OPTION_NAME = 'csv_import_action';
-    const DEFAULT_ACTION = self::ACTION_UPDATE_ELSE_CREATE;
+    const DEFAULT_ACTION = 'Update else create';
 
     private $_action;
 
