@@ -1,12 +1,10 @@
 <?php
 /**
- * CsvImport_ColumnMap_SourceItemId class
- *
- * @deprecated Since 2.1.1-full.
+ * CsvImport_ColumnMap_Identifier class
  *
  * @package CsvImport
  */
-class CsvImport_ColumnMap_SourceItemId extends CsvImport_ColumnMap
+class CsvImport_ColumnMap_Identifier extends CsvImport_ColumnMap
 {
     /**
      * @param string $columnName
@@ -14,15 +12,15 @@ class CsvImport_ColumnMap_SourceItemId extends CsvImport_ColumnMap
     public function __construct($columnName)
     {
         parent::__construct($columnName);
-        $this->_type = CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID;
+        $this->_type = CsvImport_ColumnMap::TYPE_IDENTIFIER;
     }
 
     /**
-     * Map a row to the source item id of a record.
+     * Map a row to the identifier of a record.
      *
      * @param array $row The row to map
      * @param array $result
-     * @return string Source item id of the record.
+     * @return string Identifier of the record.
      */
     public function map($row, $result)
     {

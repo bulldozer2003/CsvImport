@@ -1,5 +1,5 @@
 <?php
-    echo head(array('title' => 'CSV Import', 'bodyclass' => 'primary', 'content_class' => 'horizontal-nav'));
+    echo head(array('title' => __('CSV Import')));
 ?>
 <?php echo common('csvimport-nav'); ?>
 <div id="primary">
@@ -10,12 +10,15 @@
 <script type="text/javascript">
 //<![CDATA[
 jQuery(document).ready(function () {
+    jQuery('#format-Manage').click(Omeka.CsvImport.updateImportOptions);
     jQuery('#format-Report').click(Omeka.CsvImport.updateImportOptions);
     jQuery('#format-Item').click(Omeka.CsvImport.updateImportOptions);
+    // Deprecated.
     jQuery('#format-File').click(Omeka.CsvImport.updateImportOptions);
     jQuery('#format-Mix').click(Omeka.CsvImport.updateImportOptions);
     jQuery('#format-Update').click(Omeka.CsvImport.updateImportOptions);
     jQuery('#column_delimiter_name').click(Omeka.CsvImport.updateColumnDelimiterField);
+    jQuery('#enclosure_name').click(Omeka.CsvImport.updateEnclosureField);
     jQuery('#element_delimiter_name').click(Omeka.CsvImport.updateElementDelimiterField);
     jQuery('#tag_delimiter_name').click(Omeka.CsvImport.updateTagDelimiterField);
     jQuery('#file_delimiter_name').click(Omeka.CsvImport.updateFileDelimiterField);

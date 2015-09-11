@@ -2,6 +2,8 @@
 /**
  * CsvImport_ColumnMap_UpdateIdentifier class
  *
+ * @deprecated Since 2.1.1-full.
+ *
  * @package CsvImport
  */
 class CsvImport_ColumnMap_UpdateIdentifier extends CsvImport_ColumnMap
@@ -24,7 +26,7 @@ class CsvImport_ColumnMap_UpdateIdentifier extends CsvImport_ColumnMap
      */
     public function map($row, $result)
     {
-        $result = $row[$this->_columnName];
+        $result = trim($row[$this->_columnName]);
         return $result;
     }
 }

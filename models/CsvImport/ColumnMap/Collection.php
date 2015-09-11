@@ -8,13 +8,34 @@
  */
 class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
 {
+    private $_collectionId;
+
+    /**
+     * @internal Due to the nature of Csv Import, designed to import items, the
+     * creation of collections, if allowed, should be made here. The new
+     * collection is not removed if an error occurs during import of the item.
+     */
+    private $_createCollection;
+
+    /**
+     * Allow to use the advanced mode: determine the id here directly via the id
+     * or the Dublin Core Title. Used by Manage format.
+     */
+    private $_advanced;
+
     /**
      * @param string $columnName
+     * @param integer $collectionId
+     * @param boolean $createCollection
+     * @param boolean $advanced
      */
-    public function __construct($columnName)
+    public function __construct($columnName, $collectionId = null, $createCollection = false, $advanced = false)
     {
         parent::__construct($columnName);
         $this->_type = CsvImport_ColumnMap::TYPE_COLLECTION;
+        $this->_collectionId = (integer) $collectionId;
+        $this->_createCollection = (boolean) $createCollection;
+        $this->_advanced = $advanced;
     }
 
     /**
@@ -23,19 +44,69 @@ class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
      *
      * @param array $row The row to map
      * @param array $result
-     * @return array The result
+     * @return array|false The result
      */
     public function map($row, $result)
     {
-        $result = null;
-        $collectionTitle = $row[$this->_columnName];
-        if ($collectionTitle != '') {
-            $collection = $this->_getCollectionByTitle($collectionTitle);
+        $collectionIdentifier = trim($row[$this->_columnName]);
+        // In "Manage" format, collection is determined at row level, according
+        // to field of the identifier, so only content of the cell is returned.
+        if ($this->_advanced) {
+            if (empty($collectionIdentifier) && !empty($this->_collectionId)) {
+                $collectionIdentifier = $this->_collectionId;
+            }
+            return $collectionIdentifier;
+        }
+
+        $result = false;
+        if ($collectionIdentifier !== '') {
+            if (is_numeric($collectionIdentifier) && (integer) $collectionIdentifier > 0) {
+                $collection = get_record_by_id('Collection', $collectionIdentifier);
+            }
+            if (empty($collection)) {
+                $collection = $this->_getCollectionByTitle($collectionIdentifier);
+            }
+            if (empty($collection) && $this->_createCollection) {
+                $collection = $this->_createCollectionFromTitle($collectionIdentifier);
+            }
             if ($collection) {
                 $result = $collection->id;
             }
         }
+        else {
+            $result = $this->_collectionId;
+        }
         return $result;
+    }
+
+    /**
+     * Return the collection id.
+     *
+     * @return string The collectionId
+     */
+    public function getCollectionId()
+    {
+        return $this->_collectionId;
+    }
+
+    /**
+     * Return the create collection.
+     *
+     * @return string The create collection
+     */
+    public function getCreateCollection()
+    {
+        return $this->_createCollection;
+    }
+
+    /**
+     * Return the advanced mode.
+     *
+     * @return string The advanced mode.
+     */
+    public function getAdvanced()
+    {
+        return $this->_advanced;
     }
 
     /**
@@ -60,10 +131,28 @@ class CsvImport_ColumnMap_Collection extends CsvImport_ColumnMap
         $select->where("s.text = ?", $name);
 
         $collection = $collectionTable->fetchObject($select);
-        if (!$collection) {
+        if (!$collection && !$this->_createCollection) {
             _log("Collection not found. Collections must be created with identical names prior to import", Zend_Log::NOTICE);
             return false;
         }
+        return $collection;
+    }
+
+    /**
+     * Create a new collection from a simple raw title.
+     *
+     * @param string $title
+     * @return Collection
+     */
+    private function _createCollectionFromTitle($title)
+    {
+        $collection = new Collection;
+        $collection->save();
+        update_collection($collection, array(), array(
+            'Dublin Core' => array(
+                'Title' => array(
+                    array('text' => $title, 'html' => false),
+        ))));
         return $collection;
     }
 }

@@ -1,0 +1,3 @@
+sourceItemId	itemType	collection	Dublin Core:Title	Dublin Core:Creator	Dublin Core:Date	Dublin Core:Description
+alpha	Text	New collection from "Csv Import"	The title of this item	Myself	Just now	A test to create a collection if it doesn't exist.
+beta	Text	New collection from "Csv Import"	The title of this second item	Myself too	Now	This second item belongs to the same collection.

@@ -10,12 +10,16 @@
  */
 abstract class CsvImport_ColumnMap
 {
-    // Used with "Mixed records".
+    // Used with "Manage records".
+    const TYPE_ACTION = 'Action';
+    const TYPE_IDENTIFIER = 'Identifier';
+    const TYPE_IDENTIFIER_FIELD = 'IdentifierField';
+    const TYPE_RECORD_TYPE = 'RecordType';
+    const TYPE_ITEM = 'Item';
+    // Deprecated (used with "Mixed records" or "Update records").
     const TYPE_SOURCE_ITEM_ID = 'SourceItemId';
-    // Used with "Update records".
     const TYPE_UPDATE_MODE = 'UpdateMode';
     const TYPE_UPDATE_IDENTIFIER = 'UpdateIdentifier';
-    const TYPE_RECORD_TYPE = 'RecordType';
     const TYPE_RECORD_IDENTIFIER = 'RecordIdentifier';
     // Used with any import type.
     const TYPE_ITEM_TYPE = 'ItemType';
@@ -23,9 +27,9 @@ abstract class CsvImport_ColumnMap
     const TYPE_PUBLIC = 'Public';
     const TYPE_FEATURED = 'Featured';
     const TYPE_ELEMENT = 'Element';
+    const TYPE_EXTRA_DATA = 'ExtraData';
     const TYPE_TAG = 'Tag';
     const TYPE_FILE = 'File';
-    const TYPE_FILE_URL = 'FileUrl';
 
     protected $_columnName;
     protected $_type;

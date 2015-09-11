@@ -51,6 +51,10 @@ class CsvImport_ColumnMap_MixElement extends CsvImport_ColumnMap
      */
     public function map($row, $result)
     {
+        if (empty($this->_elementId)) {
+            return $result;
+        };
+
         if ($this->_isHtml) {
             $filter = new Omeka_Filter_HtmlPurifier();
             $text = $filter->filter($row[$this->_columnName]);
@@ -62,14 +66,12 @@ class CsvImport_ColumnMap_MixElement extends CsvImport_ColumnMap
             ? array($text)
             : explode($this->_elementDelimiter, $text);
 
-        if ($this->_elementId) {
-            foreach ($texts as $text) {
-                $result[] = array(
-                    'element_id' => $this->_elementId,
-                    'html' => $this->_isHtml ? 1 : 0,
-                    'text' => $text,
-                );
-            }
+        foreach ($texts as $text) {
+            $result[] = array(
+                'element_id' => $this->_elementId,
+                'html' => $this->_isHtml ? 1 : 0,
+                'text' => $text,
+            );
         }
 
         return $result;
@@ -90,7 +92,7 @@ class CsvImport_ColumnMap_MixElement extends CsvImport_ColumnMap
                     $elementSetName = trim($columnNameParts[0]);
                     $elementName = trim($columnNameParts[1]);
                     $element = get_db()->getTable('Element')
-                                       ->findByElementSetNameAndElementName($elementSetName, $elementName);
+                        ->findByElementSetNameAndElementName($elementSetName, $elementName);
                 }
             }
         }

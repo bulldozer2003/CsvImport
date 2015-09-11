@@ -8,13 +8,31 @@
  */
 class CsvImport_ColumnMap_ItemType extends CsvImport_ColumnMap
 {
+    const DEFAULT_ITEM_TYPE = null;
+
+    private $_itemTypeId;
+
     /**
      * @param string $columnName
+     * @param string $itemType
      */
-    public function __construct($columnName)
+    public function __construct($columnName, $itemTypeId = null)
     {
         parent::__construct($columnName);
         $this->_type = CsvImport_ColumnMap::TYPE_ITEM_TYPE;
+        $this->_itemTypeId = empty($itemTypeId)
+            ? self::DEFAULT_ITEM_TYPE
+            : $itemTypeId;
+    }
+
+    /**
+     * Return the item type id.
+     *
+     * @return int Item type id
+     */
+    public function getItemTypeId()
+    {
+        return $this->_itemTypeId;
     }
 
     /**
@@ -23,11 +41,13 @@ class CsvImport_ColumnMap_ItemType extends CsvImport_ColumnMap
      *
      * @param array $row The row to map
      * @param array $result
-     * @return array The result
+     * @return string The result
      */
     public function map($row, $result)
     {
-        $result = $row[$this->_columnName];
-        return $result;
+        $result = trim($row[$this->_columnName]);
+        return empty($result)
+            ? $this->_itemTypeId
+            : $result;
     }
 }

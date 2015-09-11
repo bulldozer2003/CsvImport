@@ -39,19 +39,25 @@ class CsvImport_ColumnMap_Set
     public function map(array $row)
     {
         $allResults = array(
+            CsvImport_ColumnMap::TYPE_ACTION => null,
+            CsvImport_ColumnMap::TYPE_IDENTIFIER => null,
+            CsvImport_ColumnMap::TYPE_IDENTIFIER_FIELD => null,
+            CsvImport_ColumnMap::TYPE_RECORD_TYPE => null,
+            CsvImport_ColumnMap::TYPE_ITEM => null,
+            // Deprecated.
             CsvImport_ColumnMap::TYPE_SOURCE_ITEM_ID => null,
             CsvImport_ColumnMap::TYPE_UPDATE_MODE => null,
             CsvImport_ColumnMap::TYPE_UPDATE_IDENTIFIER => null,
-            CsvImport_ColumnMap::TYPE_RECORD_TYPE => null,
             CsvImport_ColumnMap::TYPE_RECORD_IDENTIFIER => null,
+            // Used with any import type.
             CsvImport_ColumnMap::TYPE_ITEM_TYPE => null,
             CsvImport_ColumnMap::TYPE_COLLECTION => null,
             CsvImport_ColumnMap::TYPE_PUBLIC => null,
             CsvImport_ColumnMap::TYPE_FEATURED => null,
             CsvImport_ColumnMap::TYPE_ELEMENT => array(),
+            CsvImport_ColumnMap::TYPE_EXTRA_DATA => array(),
             CsvImport_ColumnMap::TYPE_TAG => array(),
             CsvImport_ColumnMap::TYPE_FILE => array(),
-            CsvImport_ColumnMap::TYPE_FILE_URL => null,
         );
         foreach ($this->_maps as $map) {
             $subset = $allResults[$map->getType()];
